@@ -1,0 +1,125 @@
+# ==============================================================================
+# Docker Compose 编排文件
+# 用途：一键启动 MySQL 数据库、后端 API、前端 Web 三个服务
+#
+# 核心概念：
+#   - services：定义需要运行的容器（本项目共 3 个：mysql、backend、frontend）
+#   - volumes：定义持久化存储卷，容器删除后数据仍然保留
+#   - Docker 默认会为 compose 项目创建一个桥接网络，
+#     同一项目内的容器可通过 "服务名" 直接通信（如 backend 用 mysql 连接数据库）
+#
+# 使用方法：
+#   docker compose up -d      # 一键启动所有服务（后台运行）
+#   docker compose down        # 停止并删除所有容器
+#   docker compose logs -f     # 查看所有服务日志
+#   docker compose ps          # 查看服务运行状态
+# ==============================================================================
+
+services:
+  # ==================== MySQL 数据库 ====================
+  mysql:
+    # 使用 MySQL 8.0 官方镜像
+    image: mysql:8.0
+
+    # 环境变量：容器启动时传入，用于初始化数据库
+    environment:
+      MYSQL_ROOT_PASSWORD: intraai123      # root 用户密码
+      MYSQL_DATABASE: intraai              # 自动创建名为 intraai 的数据库
+      MYSQL_CHARSET: utf8mb4               # 设置字符集为 utf8mb4（支持中文和 emoji）
+
+    # 端口映射：将容器内的 3306 端口映射到宿主机的 3306 端口
+    # 格式 - "宿主机端口:容器内端口"
+    # 映射后可通过 localhost:3306 从宿主机访问数据库（方便调试）
+    ports:
+      - "3306:3306"
+
+    # 数据卷挂载：将宿主机的 Docker 卷挂载到容器内的 MySQL 数据目录
+    # 这样即使容器被删除，MySQL 数据依然保留在数据卷中
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+    # 健康检查：确认 MySQL 服务真正可用后才认为"健康"
+    #   test：执行 mysqladmin ping 命令检测数据库是否响应
+    #   interval：每 10 秒检测一次
+    #   retries：连续失败 5 次后才标记为不健康
+    # 作用：其他服务可通过 depends_on + condition: service_healthy 等待数据库就绪
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+
+  # ==================== 后端服务 ====================
+  backend:
+    # 构建：使用 backend/ 目录下的 Dockerfile 构建自定义镜像
+    build: ./backend
+
+    # 端口映射：后端 API 对外暴露 8000 端口
+    ports:
+      - "8000:8000"
+
+    # 环境变量：后端应用所需的配置
+    environment:
+      # ---------- 数据库连接配置 ----------
+      # 注意：MYSQL_HOST 填写的是 "mysql"（即上面定义的服务名），
+      # 而非 IP 地址。这是因为 Docker Compose 会自动为每个服务名注册 DNS，
+      # 容器间可通过服务名直接访问彼此（内部 DNS 解析）
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: intraai123
+      MYSQL_DB: intraai
+
+      # ---------- 应用安全配置 ----------
+      # SECRET_KEY：用于 JWT 等加密场景，生产环境请替换为随机长字符串
+      SECRET_KEY: change-this-to-a-random-string
+
+      # ---------- OpenAI API 配置 ----------
+      # ${VAR} 语法表示从宿主机的 .env 文件中读取变量值
+      # ${VAR:-default} 语法表示：如果 .env 中没有定义该变量，则使用 default 作为默认值
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+
+      # ---------- 文件存储目录 ----------
+      UPLOAD_DIR: /app/uploads
+      CHROMA_DIR: /app/chroma_data
+
+    # 数据卷挂载：持久化上传文件和 ChromaDB 向量数据
+    volumes:
+      - upload_data:/app/uploads            # 上传文档存储
+      - chroma_data:/app/chroma_data        # 向量数据库存储
+
+    # 依赖关系：
+    #   depends_on 表示容器启动顺序依赖
+    #   condition: service_healthy 表示不仅等 mysql 容器启动，
+    #   还要等 mysql 的健康检查通过后才启动 backend
+    #   这避免了后端在数据库还未就绪时报连接错误
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ==================== 前端服务 ====================
+  frontend:
+    # 构建：使用 frontend/ 目录下的 Dockerfile 构建自定义镜像
+    build: ./frontend
+
+    # 端口映射：前端 Web 服务对外暴露 80 端口（HTTP 默认端口）
+    ports:
+      - "80:80"
+
+    # 依赖关系：前端依赖后端服务先启动（但不需要等待健康检查）
+    depends_on:
+      - backend
+
+# ==================== 数据卷声明 ====================
+# 在此声明的所有命名卷（named volumes）由 Docker 引擎管理
+# 优点：
+#   1. 数据持久化 —— 容器删除后数据不丢失
+#   2. 跨容器共享 —— 多个容器可挂载同一数据卷
+#   3. 备份迁移方便 —— 可通过 docker volume 命令管理
+#
+# 不声明的匿名卷会在 docker compose down 时被删除（除非加 --volumes 标志）
+volumes:
+  mysql_data:       # MySQL 数据库文件
+  upload_data:      # 用户上传的文档文件
+  chroma_data:      # ChromaDB 向量数据库文件
