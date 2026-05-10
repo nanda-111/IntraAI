@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import Base, engine
 from app.api.auth import router as auth_router
+from app.api.users import router as users_router
 import app.models  # 导入所有模型，让 SQLAlchemy 的 Base.metadata 收集到所有表定义
 
 # 创建 FastAPI 应用实例
@@ -46,6 +47,9 @@ def startup():
 
 # 注册认证路由（/api/auth/register、/api/auth/login）
 app.include_router(auth_router)
+
+# 注册用户管理路由（/api/users/me）
+app.include_router(users_router)
 
 # 健康检查接口 — 用于确认服务是否正常运行
 # Docker 部署时也可以用来做容器健康检查
