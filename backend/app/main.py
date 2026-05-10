@@ -6,6 +6,7 @@ from app.api.auth import router as auth_router
 from app.api.users import router as users_router
 from app.api.knowledge_bases import router as kb_router
 from app.api.documents import router as docs_router
+from app.api.chat import router as chat_router
 import app.models  # 导入所有模型，让 SQLAlchemy 的 Base.metadata 收集到所有表定义
 
 # 创建 FastAPI 应用实例
@@ -58,6 +59,9 @@ app.include_router(kb_router)
 
 # 注册文档管理路由（/api/documents/）
 app.include_router(docs_router)
+
+# 注册对话路由（/api/chat/）
+app.include_router(chat_router)
 
 # 健康检查接口 — 用于确认服务是否正常运行
 # Docker 部署时也可以用来做容器健康检查
