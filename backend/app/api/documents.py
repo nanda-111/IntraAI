@@ -27,7 +27,7 @@ from app.models.document import Document
 from app.schemas.document import DocumentOut
 from app.services.document_processor import extract_text, split_text
 from app.services.embedding import get_embeddings
-from app.services.vector_store import add_documents
+from app.services.vector_store import add_documents, search
 
 # 创建路由器，所有路由都以 /api/documents 为前缀
 router = APIRouter(prefix="/api/documents", tags=["文档"])
@@ -39,6 +39,36 @@ router = APIRouter(prefix="/api/documents", tags=["文档"])
 #      上传不支持的格式会导致处理失败
 #   3. 减少存储浪费：避免用户上传无关的大文件（如视频、压缩包）
 ALLOWED_TYPES = {"pdf", "docx", "txt", "md"}
+
+
+@router.post("/search/{kb_id}")
+def search_kb(
+    kb_id: int,
+    query: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    在知识库中搜索与问题最相关的文档切片（测试接口）。
+
+    将用户提问转换为向量后，在指定知识库的 ChromaDB 集合中
+    执行相似度检索，返回最相关的 3 个切片，用于验证向量检索链路是否正常。
+    """
+    # 1. 检查知识库是否存在
+    kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
+    if not kb:
+        raise HTTPException(status_code=404, detail="知识库不存在")
+
+    # 2. 将问题文本转换为向量表示
+    # get_embeddings 接收字符串列表，返回对应的向量列表，取第一个即为当前 query 的向量
+    query_embedding = get_embeddings([query])[0]
+
+    # 3. 在知识库中检索最相关的 3 个切片
+    # search 函数内部通过 ChromaDB 执行余弦相似度计算，返回 top_k 个最匹配的文本片段
+    results = search(kb_id, query_embedding, top_k=3)
+
+    # 4. 返回查询词和检索结果，便于前端展示和调试
+    return {"query": query, "results": results}
 
 
 @router.post("/upload/{kb_id}", response_model=DocumentOut)
