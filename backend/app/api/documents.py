@@ -25,6 +25,9 @@ from app.models.user import User
 from app.models.knowledge_base import KnowledgeBase
 from app.models.document import Document
 from app.schemas.document import DocumentOut
+from app.services.document_processor import extract_text, split_text
+from app.services.embedding import get_embeddings
+from app.services.vector_store import add_documents
 
 # 创建路由器，所有路由都以 /api/documents 为前缀
 router = APIRouter(prefix="/api/documents", tags=["文档"])
@@ -46,13 +49,17 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
 ):
     """
-    上传文档到指定知识库。
+    上传文档到指定知识库，并自动执行处理流水线。
 
     处理流程：
       1. 验证知识库存在性和用户权限
       2. 校验文件类型是否在允许列表中
       3. 将文件保存到本地磁盘（按知识库 ID 分目录存储）
-      4. 在数据库中创建文档记录
+      4. 解析文件提取纯文本
+      5. 将文本切分为小片段（每段 500 字符，重叠 50 字符）
+      6. 分批将切片转换为向量（每批最多 100 条）
+      7. 将切片和向量存入 ChromaDB
+      8. 在数据库中创建文档记录（含实际切片数量）
     """
     # 1. 检查知识库是否存在
     kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
@@ -86,15 +93,72 @@ async def upload_document(
     with open(filepath, "wb") as f:
         f.write(content)
 
-    # 5. 保存文档记录到数据库
-    # chunk_count 暂时设为 0，后续 Task 3.4 会实现自动切片和向量化，
-    # 届时会在处理完成后更新此字段
+    # 5. 文档处理流水线：解析 → 切片 → 向量化 → 存入 ChromaDB
+    #
+    # 这是整个上传流程的核心环节，将原始文件转化为可检索的向量数据。
+    # 四个步骤串行执行，每一步的输出是下一步的输入：
+    #   步骤 1：从文件中提取纯文本（PDF/Word/TXT/MD → str）
+    #   步骤 2：将文本切分为小片段（str → list[str]）
+    #   步骤 3：将每个片段转换为向量（list[str] → list[list[float]]）
+    #   步骤 4：将片段和向量存入 ChromaDB（持久化，供后续检索使用）
+    #
+    # 【同步处理 vs 异步处理的权衡】
+    #   当前采用同步处理：上传后立即执行流水线，用户需等待处理完成。
+    #   优点：实现简单，用户能立即知道处理结果（成功/失败）。
+    #   缺点：对于大文件或大量文件，处理时间较长，可能阻塞 HTTP 请求。
+    #   更优方案（后续可改进）：使用 Celery 等异步任务队列，
+    #   上传后立即返回，后台异步处理，通过轮询或 WebSocket 通知前端。
+
+    # 步骤 1：从文件中提取纯文本
+    # extract_text 根据文件扩展名选择对应的解析器（PDF 用 PyMuPDF，
+    # Word 用 python-docx，TXT/MD 直接读取），返回纯文本字符串。
+    text = extract_text(filepath, ext)
+
+    # 步骤 2：将文本切分为小片段（每段 500 字符，重叠 50 字符）
+    # chunk_size=500：每个片段最多 500 个字符，保证向量表示的语义精确性
+    # overlap=50：相邻片段重叠 50 个字符，防止关键句子在切片边界被切断
+    chunks = split_text(text, chunk_size=500, overlap=50)
+
+    # 步骤 3：将切片转换为向量
+    # 初始化 chunk_count 为 0，防止文件为空或解析失败时无值可用
+    chunk_count = 0
+    if chunks:
+        # 分批获取向量，每批最多 100 条
+        # 【为什么分批？】
+        #   - OpenAI Embedding API 对单次请求有 token 数量限制
+        #   - 即使不超过 token 限制，大量文本一次性发送可能导致超时
+        #   - 分批处理可以降低单次请求负载，提高稳定性
+        #   - 某一批失败时，只需重试该批，而不是全部重来
+        all_embeddings = []
+        for i in range(0, len(chunks), 100):
+            batch = chunks[i:i + 100]
+            embs = get_embeddings(batch)
+            all_embeddings.extend(embs)
+
+        # 步骤 4：将文本切片和向量存入 ChromaDB
+        # add_documents 返回成功写入的切片数量，作为文档的 chunk_count
+        # 该值在数据库中记录，供前端展示和后续管理使用
+        chunk_count = add_documents(kb_id, chunks, all_embeddings)
+
+    # 【异常处理说明】
+    #   当前代码未使用 try/except 包裹流水线，这意味着：
+    #   - 如果 extract_text 失败（如文件损坏），会抛出异常，
+    #     FastAPI 会返回 500 错误，数据库中不会创建文档记录
+    #   - 如果 get_embeddings 失败（如 API 密钥无效或网络故障），
+    #     同样会抛出异常，文档记录不会被创建
+    #   - 如果 add_documents 失败（如 ChromaDB 磁盘空间不足），
+    #     也会抛出异常并回滚
+    #   这种"全部成功或全部失败"的策略保证了数据一致性，
+    #   但代价是部分成功时没有重试机制。后续可引入事务补偿或异步重试。
+
+    # 6. 保存文档记录到数据库
+    # chunk_count 现在是实际的切片数量，而非之前的固定值 0
     doc = Document(
         filename=file.filename,
         filepath=filepath,
         file_type=ext,
         file_size=len(content),
-        chunk_count=0,
+        chunk_count=chunk_count,
         kb_id=kb_id,
         uploaded_by=current_user.id,
     )
