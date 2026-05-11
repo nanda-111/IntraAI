@@ -1,57 +1,42 @@
 """
 向量化服务模块
 
-功能：调用 OpenAI Embedding API，将文本转换为向量（Embedding）。
+功能：将文本转换为向量（Embedding），用于语义搜索。
 
-什么是向量（Embedding）？
-  - 向量是文本的数学表示，用一串浮点数（如 1536 维）表示文本的语义信息
-  - 语义相似的文本，它们的向量在空间中距离更近
-  - 例如 "苹果手机" 和 "iPhone" 的向量会比 "苹果手机" 和 "汽车" 更接近
-  - 向量使得计算机能够"理解"文本之间的语义关系
-
-为什么需要向量化？
-  - 传统搜索基于关键词匹配，无法理解语义（如搜"开心"找不到"高兴"）
-  - 向量搜索基于语义相似度，能理解同义词和上下文
-  - 这是 RAG（检索增强生成）系统的核心环节
+使用本地 sentence-transformers 模型（无需 API Key、无需联网）。
+模型首次加载时会自动下载（约 90MB），之后从本地缓存加载。
 
 使用方式：
     from app.services.embedding import get_embeddings
     vectors = get_embeddings(["你好世界", "今天天气不错"])
 """
 
-from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 
-from app.core.config import settings
-
-# 创建 OpenAI 客户端实例
-# api_key：API 密钥，用于身份验证
-# base_url：API 基础地址，默认为 OpenAI 官方地址
-#   可以替换为兼容的第三方 API 地址（如国内代理服务）
-client = OpenAI(api_key=settings.OPENAI_API_KEY, base_url=settings.OPENAI_BASE_URL)
+# 加载本地 Embedding 模型
+# 使用 all-MiniLM-L6-v2：体积小（约 90MB）、速度快、效果好
+# 支持中英文，输出 384 维向量
+# 首次运行时会自动从 HuggingFace 下载，之后使用本地缓存
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
 def get_embeddings(texts: list[str]) -> list[list[float]]:
     """
-    调用 OpenAI Embedding API，将文本列表批量转换为向量。
+    将文本列表批量转换为向量。
 
-    批量 vs 单条处理的效率区别：
-      - 批量调用一次 API 请求处理多条文本，减少网络往返次数
-      - 单条处理需要为每条文本单独发一次请求，效率低且浪费配额
-      - OpenAI Embedding API 支持单次请求最多处理数千条文本
-      - 因此我们在所有需要向量化的场景中都采用批量方式
+    工作原理：
+      1. SentenceTransformer 将文本通过预训练的神经网络
+      2. 网络输出固定维度的浮点数数组（向量）
+      3. 语义相似的文本，向量在空间中距离更近
 
     参数：
         texts: 待转换的文本列表，如 ["你好", "世界"]
 
     返回：
-        向量列表，每个向量是一个浮点数列表
+        向量列表，每个向量是 384 维的浮点数列表
         如 [[0.1, -0.2, ...], [0.3, 0.4, ...]]
-        向量维度取决于所使用的模型（text-embedding-3-small 为 1536 维）
     """
-    response = client.embeddings.create(
-        model=settings.OPENAI_EMBEDDING_MODEL,
-        input=texts,
-    )
-    # response.data 是一个列表，每个元素对应一个输入文本
-    # 每个元素的 .embedding 属性就是该文本的向量
-    return [item.embedding for item in response.data]
+    # model.encode() 批量处理文本，比逐条处理效率高很多
+    embeddings = model.encode(texts)
+    # numpy 数组转为 Python 列表（ChromaDB 需要列表格式）
+    return embeddings.tolist()

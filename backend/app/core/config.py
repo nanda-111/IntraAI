@@ -43,13 +43,14 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "dev-secret-key"  # JWT 签名密钥，生产环境必须更换为随机生成的强密钥
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 访问令牌有效期（分钟），1440 分钟 = 24 小时
 
-    # ==================== OpenAI API 配置 ====================
-    # 用于调用 OpenAI 的大语言模型 API（聊天、向量嵌入等）
+    # ==================== MiMo API 配置 ====================
+    # 使用小米 MiMo 大模型 API（兼容 OpenAI 接口协议）
+    # 环境变量名沿用 OPENAI_* 是为了保持代码兼容性，实际调用的是 MiMo 服务
 
-    OPENAI_API_KEY: str = ""                          # OpenAI API 密钥，必须在 .env 中配置
-    OPENAI_BASE_URL: str = "https://api.openai.com/v1"  # API 基础地址，可替换为兼容的第三方服务
-    OPENAI_MODEL: str = "gpt-4o-mini"                 # 默认使用的聊天模型
-    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"  # 默认使用的文本向量嵌入模型
+    OPENAI_API_KEY: str = ""                          # MiMo API 密钥，必须在 .env 中配置
+    OPENAI_BASE_URL: str = "https://token-plan-cn.xiaomimimo.com/v1"  # MiMo API 地址
+    OPENAI_MODEL: str = "mimo-v2-pro"                 # 默认聊天模型：MiMo v2 Pro
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"  # 文本向量嵌入模型
 
     # ==================== 文件存储路径配置 ====================
     # 本地文件系统的存储目录

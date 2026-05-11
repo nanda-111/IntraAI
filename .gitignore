@@ -41,3 +41,7 @@ Thumbs.db
 # Project specific
 uploads/
 chroma_data/
+.claude/
+
+# Pip install artifacts (e.g. =0.41b0 from bad pip commands)
+backend/=*
