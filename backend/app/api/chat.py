@@ -145,7 +145,12 @@ def chat(
     if data.session_id:
         session, summary, history = _load_session_history(data.session_id, db)
 
-    if data.kb_id:
+    # Agent 模式
+    if data.mode == "agent":
+        import asyncio
+        from app.services.langchain_agent import run_agent as agent_run
+        answer = asyncio.run(agent_run(data.question, history))
+    elif data.kb_id:
         answer = ask_with_rag(data.question, data.kb_id, history=history, summary=summary)
     elif history or summary:
         messages = []
@@ -182,7 +187,25 @@ def chat_stream(
 
         full_answer = ""
 
-        if data.kb_id:
+        if data.mode == "agent":
+            # Agent 流式模式
+            import asyncio
+            from app.services.langchain_agent import run_agent_stream as agent_stream
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                agen = agent_stream(data.question, history)
+                while True:
+                    try:
+                        chunk = loop.run_until_complete(agen.__anext__())
+                        full_answer += chunk
+                        yield f"data: {chunk}\n\n"
+                    except StopAsyncIteration:
+                        break
+            finally:
+                loop.close()
+        elif data.kb_id:
             from app.services.rag import ask_with_rag_stream
             for chunk in ask_with_rag_stream(data.question, data.kb_id, history=history, summary=summary):
                 full_answer += chunk
