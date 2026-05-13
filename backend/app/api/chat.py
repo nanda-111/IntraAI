@@ -147,9 +147,8 @@ def chat(
 
     # Agent 模式
     if data.mode == "agent":
-        import asyncio
         from app.services.langchain_agent import run_agent as agent_run
-        answer = asyncio.run(agent_run(data.question, history))
+        answer = agent_run(data.question, history)
     elif data.kb_id:
         answer = ask_with_rag(data.question, data.kb_id, history=history, summary=summary)
     elif history or summary:
