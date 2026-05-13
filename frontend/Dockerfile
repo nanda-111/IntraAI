@@ -4,7 +4,7 @@
 # - 最终镜像只包含 Nginx 和编译后的静态文件，不包含 Node.js 运行时和源代码
 # - 镜像体积大幅缩小（从数百 MB 缩小到几十 MB）
 # - 生产环境攻击面更小，安全性更高
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
