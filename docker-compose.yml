@@ -73,12 +73,11 @@ services:
       # SECRET_KEY：用于 JWT 等加密场景，生产环境请替换为随机长字符串
       SECRET_KEY: change-this-to-a-random-string
 
-      # ---------- OpenAI API 配置 ----------
-      # ${VAR} 语法表示从宿主机的 .env 文件中读取变量值
-      # ${VAR:-default} 语法表示：如果 .env 中没有定义该变量，则使用 default 作为默认值
+      # ---------- MiMo API 配置 ----------
+      # 从宿主机 .env 文件中读取 MiMo API 配置
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      OPENAI_MODEL: ${OPENAI_MODEL}
 
       # ---------- 文件存储目录 ----------
       UPLOAD_DIR: /app/uploads
