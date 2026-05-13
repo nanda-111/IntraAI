@@ -11,8 +11,9 @@ import api from './index'
  *
  * @param {Object} data - 请求数据
  * @param {string} data.question - 用户提出的问题
- * @param {number|null} data.kb_id - 可选的知识库 ID，指定后 AI 会基于该知识库的内容回答
- * @returns {Promise} 返回包含 AI 回答的响应对象，响应数据中 answer 字段为 AI 的回答文本
+ * @param {number|null} data.kb_id - 可选的知识库 ID
+ * @param {number|null} data.session_id - 可选的会话 ID，用于多轮对话上下文
+ * @returns {Promise} 返回包含 AI 回答的响应对象
  */
 export function sendChat(data) {
   return api.post('/api/chat/', data)
