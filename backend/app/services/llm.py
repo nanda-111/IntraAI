@@ -137,3 +137,45 @@ def chat_completion_stream(messages: list[dict], model: str | None = None):
         # 因此需要先判断是否为 None，避免将 None yield 出去
         if chunk.choices[0].delta.content:
             yield chunk.choices[0].delta.content
+
+
+def generate_title(question: str, answer: str) -> str:
+    """
+    根据第一轮对话生成会话标题。
+
+    参数：
+        question: 用户的问题
+        answer: AI 的回答
+
+    返回：
+        不超过20个字的标题
+    """
+    prompt = (
+        "请用不超过20个字概括以下对话的主题，只输出标题，不要加引号：\n"
+        f"用户问：{question}\n"
+        f"AI答：{answer}"
+    )
+    title = chat_completion([{"role": "user", "content": prompt}])
+    return title.strip().strip('"').strip("'").strip("「」").strip("“”")[:50]
+
+
+def generate_summary(conversations: list[dict]) -> str:
+    """
+    对多轮对话生成摘要。
+
+    参数：
+        conversations: 对话列表，每项包含 role 和 content
+
+    返回：
+        摘要文本
+    """
+    history_text = ""
+    for conv in conversations:
+        role_label = "用户" if conv["role"] == "user" else "AI"
+        history_text += f"{role_label}：{conv['content']}\n\n"
+
+    prompt = (
+        "请用简洁的语言概括以下对话的主要内容和结论，控制在200字以内：\n\n"
+        f"{history_text}"
+    )
+    return chat_completion([{"role": "user", "content": prompt}])
