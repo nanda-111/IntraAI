@@ -23,6 +23,7 @@ class ChatRequest(BaseModel):
     question: str                # 用户的问题（必填）
     kb_id: int | None = None     # 可选的知识库 ID，不选则直接问 LLM（不走 RAG）
     session_id: int | None = None  # 可选的会话 ID，用于多轮对话上下文
+    mode: str = "normal"  # "normal" 走现有流程，"agent" 走 LangChain Agent
 
 
 class ChatResponse(BaseModel):
