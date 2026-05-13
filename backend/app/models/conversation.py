@@ -41,6 +41,10 @@ class Conversation(Base):
     # nullable=True 表示对话可以不关联知识库（如通用问答场景）
     kb_id = Column(Integer, ForeignKey("knowledge_bases.id"), nullable=True)
 
+    # 外键：关联到 sessions 表的 id 字段
+    # nullable=True 兼容旧数据（旧对话没有 session_id）
+    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=True)
+
     # 用户的问题，使用 Text 类型支持较长文本
     # 用户提问可能包含大段文字或代码片段，因此使用 Text 而非 String
     question = Column(Text, nullable=False)
