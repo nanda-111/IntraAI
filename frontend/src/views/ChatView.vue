@@ -66,7 +66,7 @@
                 v-model:value="question"
                 placeholder="输入问题..."
                 :auto-size="{ minRows: 1, maxRows: 4 }"
-                @keydown.enter.exact="handleSend"
+                @keydown.enter.exact.prevent="handleSend"
               />
               <a-button type="primary" :loading="loading" @click="handleSend">发送</a-button>
             </div>
