@@ -213,6 +213,9 @@ def list_documents(
     kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
     if not kb:
         raise HTTPException(status_code=404, detail="知识库不存在")
+    # 权限检查：管理员可以查看所有，普通用户只能查看自己知识库的文档
+    if not current_user.is_admin and kb.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权访问")
     # 查询该知识库下的所有文档
     return db.query(Document).filter(Document.kb_id == kb_id).all()
 
@@ -233,6 +236,9 @@ def delete_document(
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="文档不存在")
+    # 权限检查：只有管理员或文档上传者可以删除
+    if not current_user.is_admin and doc.uploaded_by != current_user.id:
+        raise HTTPException(status_code=403, detail="无权删除")
     # 删除本地文件（先检查文件是否存在，避免文件已被手动删除时报错）
     if os.path.exists(doc.filepath):
         os.remove(doc.filepath)
