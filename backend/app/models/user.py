@@ -87,11 +87,4 @@ class User(Base):
     #   使用 server_default 更可靠，因为它不依赖应用服务器的时区设置。
     created_at = Column(DateTime, server_default=func.now())
 
-    # 更新时间
-    # server_default=func.now()：新记录插入时，updated_at 的初始值与 created_at 相同。
-    # onupdate=func.now()：当记录被更新（UPDATE）时，SQLAlchemy 会自动将该字段刷新为当前时间。
-    #   onupdate 是 SQLAlchemy 特有的机制，它在 ORM 层面工作：
-    #   当你修改了模型实例的属性并调用 session.commit() 时，SQLAlchemy 会在 UPDATE 语句中
-    #   自动包含 updated_at = NOW()，无需手动设置。
-    #   注意：onupdate 只在通过 ORM 更新时生效，直接执行 SQL UPDATE 不会触发。
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

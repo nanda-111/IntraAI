@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.database import Base, engine
+from alembic.config import Config
+from alembic import command
+import os
+
 from app.api.auth import router as auth_router
 from app.api.users import router as users_router
 from app.api.knowledge_bases import router as kb_router
@@ -9,7 +12,6 @@ from app.api.documents import router as docs_router
 from app.api.chat import router as chat_router
 from app.api.admin import router as admin_router
 from app.api.sessions import router as sessions_router
-import app.models  # 导入所有模型，让 SQLAlchemy 的 Base.metadata 收集到所有表定义
 
 # 创建 FastAPI 应用实例
 # title 会显示在 Swagger 文档的标题栏
@@ -27,27 +29,14 @@ app.add_middleware(
 
 
 # ==================== 应用启动事件 ====================
-# @app.on_event("startup") 是 FastAPI 的生命周期事件装饰器。
-# 被装饰的函数会在应用启动时（接收第一个请求之前）自动执行一次。
-# 这里用来自动创建数据库表。
-#
-# Base.metadata.create_all() 的工作机制：
-#   1. Base.metadata 中存储了所有继承了 Base 的模型类的表结构信息。
-#      这些信息是通过 import app.models 加载进来的（见文件顶部的导入语句）。
-#   2. create_all(bind=engine) 会检查目标数据库中是否已存在对应的表。
-#   3. 如果表不存在，则执行 CREATE TABLE 语句创建表。
-#   4. 如果表已存在，则跳过（不会删除或修改已有表的结构和数据）。
-#   5. 因此这个操作是安全的，可以反复执行而不会丢失数据。
-#
-# 注意事项：
-#   - create_all 只能创建新表，不能修改已有表的结构（如添加列、修改列类型）。
-#     如果需要修改表结构，应使用 Alembic 等数据库迁移工具。
-#   - MySQL 未运行时，create_all 会抛出连接异常，但不会影响应用启动（异常会被捕获）。
-#     实际开发中应确保数据库服务已启动。
+# 应用启动时自动执行数据库迁移，将数据库 schema 升级到最新版本。
+# 使用 Alembic 替代了原来的 create_all()，支持表结构的版本化管理和增量变更。
 @app.on_event("startup")
 def startup():
-    """应用启动时自动创建所有数据库表（如果表已存在则跳过）"""
-    Base.metadata.create_all(bind=engine)
+    """应用启动时自动执行数据库迁移（alembic upgrade head）"""
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    alembic_cfg = Config(os.path.join(backend_dir, "alembic.ini"))
+    command.upgrade(alembic_cfg, "head")
 
 
 # 注册认证路由（/api/auth/register、/api/auth/login）
