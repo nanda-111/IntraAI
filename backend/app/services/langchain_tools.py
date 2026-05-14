@@ -11,6 +11,8 @@ LangChain Agent 工具模块
   - 返回值必须是 str：Agent 需要文本形式的结果来继续推理
 """
 
+import re
+
 from langchain_core.tools import tool
 from sqlalchemy import text
 
@@ -27,7 +29,7 @@ def rag_search(query: str) -> str:
         embeddings = get_embeddings([query])
         if not embeddings:
             return "向量化失败，无法搜索知识库。"
-        chunks = vector_search(1, embeddings[0], top_k=5)
+        chunks = vector_search(kb_id=1, query_embedding=embeddings[0], top_k=5)
         if not chunks:
             return "知识库中没有找到相关内容。"
         return "\n\n---\n\n".join(chunks)
@@ -47,7 +49,7 @@ def db_query(sql: str) -> str:
         return "错误：只允许 SELECT 查询语句。"
 
     for kw in ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "TRUNCATE", "CREATE"]:
-        if kw in sql_upper:
+        if re.search(r'\b' + kw + r'\b', sql_upper):
             return f"错误：禁止使用 {kw} 语句。"
 
     try:

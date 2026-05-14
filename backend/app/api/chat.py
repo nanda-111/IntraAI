@@ -117,7 +117,10 @@ def _maybe_compress(session_id: int, db: DbSession):
 
     # 获取会话，拼接已有摘要
     session = db.query(Session).filter(Session.id == session_id).first()
-    if session and session.summary:
+    if not session:
+        return
+
+    if session.summary:
         combined = f"{session.summary}\n\n---\n\n{new_summary}"
     else:
         combined = new_summary
@@ -181,54 +184,59 @@ def chat_stream(
         summary = None
         history = None
 
-        if data.session_id:
-            session, summary, history = _load_session_history(data.session_id, db)
+        try:
+            if data.session_id:
+                session, summary, history = _load_session_history(data.session_id, db)
 
-        full_answer = ""
+            full_answer = ""
 
-        if data.mode == "agent":
-            # Agent 流式模式
-            import asyncio
-            from app.services.langchain_agent import run_agent_stream as agent_stream
+            if data.mode == "agent":
+                # Agent 流式模式
+                import asyncio
+                from app.services.langchain_agent import run_agent_stream as agent_stream
 
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                agen = agent_stream(data.question, history)
-                while True:
-                    try:
-                        chunk = loop.run_until_complete(agen.__anext__())
-                        full_answer += chunk
-                        yield f"data: {chunk}\n\n"
-                    except StopAsyncIteration:
-                        break
-            finally:
-                loop.close()
-        elif data.kb_id:
-            from app.services.rag import ask_with_rag_stream
-            for chunk in ask_with_rag_stream(data.question, data.kb_id, history=history, summary=summary):
-                full_answer += chunk
-                yield f"data: {chunk}\n\n"
-        elif history or summary:
-            from app.services.llm import chat_completion_stream as llm_stream
-            messages = []
-            if summary:
-                messages.append({"role": "system", "content": f"以下是对之前对话的摘要：\n{summary}"})
-            if history:
-                messages.extend(history)
-            messages.append({"role": "user", "content": data.question})
-            for chunk in llm_stream(messages):
-                full_answer += chunk
-                yield f"data: {chunk}\n\n"
-        else:
-            from app.services.llm import chat_completion_stream as llm_stream
-            for chunk in llm_stream([{"role": "user", "content": data.question}]):
-                full_answer += chunk
-                yield f"data: {chunk}\n\n"
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    agen = agent_stream(data.question, history)
+                    while True:
+                        try:
+                            chunk = loop.run_until_complete(agen.__anext__())
+                            full_answer += chunk
+                            yield f"data: {chunk}\n\n"
+                        except StopAsyncIteration:
+                            break
+                finally:
+                    loop.close()
+            elif data.kb_id:
+                from app.services.rag import ask_with_rag_stream
+                for chunk in ask_with_rag_stream(data.question, data.kb_id, history=history, summary=summary):
+                    full_answer += chunk
+                    yield f"data: {chunk}\n\n"
+            elif history or summary:
+                from app.services.llm import chat_completion_stream as llm_stream
+                messages = []
+                if summary:
+                    messages.append({"role": "system", "content": f"以下是对之前对话的摘要：\n{summary}"})
+                if history:
+                    messages.extend(history)
+                messages.append({"role": "user", "content": data.question})
+                for chunk in llm_stream(messages):
+                    full_answer += chunk
+                    yield f"data: {chunk}\n\n"
+            else:
+                from app.services.llm import chat_completion_stream as llm_stream
+                for chunk in llm_stream([{"role": "user", "content": data.question}]):
+                    full_answer += chunk
+                    yield f"data: {chunk}\n\n"
 
-        yield "data: [DONE]\n\n"
+            yield "data: [DONE]\n\n"
 
-        _save_conversation(data, full_answer, current_user, db)
-        _post_chat(session, data, full_answer, db)
+            if full_answer:
+                _save_conversation(data, full_answer, current_user, db)
+                _post_chat(session, data, full_answer, db)
+        except Exception:
+            yield "data: [ERROR]\n\n"
+            raise
 
     return StreamingResponse(generate(), media_type="text/event-stream")
