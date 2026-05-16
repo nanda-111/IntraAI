@@ -83,10 +83,11 @@ services:
       UPLOAD_DIR: /app/uploads
       CHROMA_DIR: /app/chroma_data
 
-    # 数据卷挂载：持久化上传文件和 ChromaDB 向量数据
+    # 数据卷挂载：持久化上传文件、ChromaDB 向量数据和 HuggingFace 模型缓存
     volumes:
       - upload_data:/app/uploads            # 上传文档存储
       - chroma_data:/app/chroma_data        # 向量数据库存储
+      - hf_cache:/app/hf_cache              # HuggingFace 模型缓存（避免每次重启重新下载）
 
     # 依赖关系：
     #   depends_on 表示容器启动顺序依赖
@@ -122,3 +123,4 @@ volumes:
   mysql_data:       # MySQL 数据库文件
   upload_data:      # 用户上传的文档文件
   chroma_data:      # ChromaDB 向量数据库文件
+  hf_cache:         # HuggingFace 模型缓存
