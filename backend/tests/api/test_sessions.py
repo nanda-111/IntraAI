@@ -1,6 +1,5 @@
 """会话 API 集成测试"""
 
-import pytest
 
 
 class TestCreateSession:

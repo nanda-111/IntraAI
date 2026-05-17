@@ -1,6 +1,5 @@
 """管理后台 API 集成测试"""
 
-import pytest
 
 
 class TestAdminUsers:

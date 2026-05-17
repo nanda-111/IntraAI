@@ -1,6 +1,5 @@
 """用户 API 集成测试（/me）"""
 
-import pytest
 
 
 class TestGetMe:
