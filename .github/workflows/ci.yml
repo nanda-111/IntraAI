@@ -1,0 +1,107 @@
+# =============================================================================
+# CI 流水线：每次 push 或 PR 自动执行
+# 阶段：Lint → Test → Build（阶段间有依赖，前一阶段失败则后续不执行）
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 同一分支的新 push 取消旧的运行
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==================== 阶段 1：代码规范检查 ====================
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---- 后端 Lint ----
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Ruff check
+        run: ruff check backend/
+
+      - name: Ruff format check
+        run: ruff format --check backend/
+
+      # ---- 前端 Lint ----
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: frontend
+
+      - name: ESLint check
+        run: npm run lint
+        working-directory: frontend
+
+  # ==================== 阶段 2：单元测试 ====================
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---- 后端测试 ----
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend deps
+        run: pip install -r backend/requirements.txt
+
+      - name: Install test tools
+        run: pip install pytest pytest-cov ruff
+
+      - name: Run backend tests
+        run: pytest --cov=backend/app --cov-report=term-missing --cov-fail-under=60
+
+      # ---- 前端测试 ----
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run frontend tests
+        run: npm run test
+        working-directory: frontend
+
+  # ==================== 阶段 3：Docker 构建 ====================
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t intraai-backend:${{ github.sha }} ./backend
+
+      - name: Build frontend image
+        run: docker build -t intraai-frontend:${{ github.sha }} ./frontend
+
+      - name: Verify images exist
+        run: |
+          docker images | grep intraai-backend
+          docker images | grep intraai-frontend

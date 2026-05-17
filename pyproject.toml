@@ -1,0 +1,44 @@
+# =============================================================================
+# 项目级配置：代码检查（ruff）和测试（pytest）
+# =============================================================================
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort (import 排序)
+    "B",    # flake8-bugbear (常见 bug 模式)
+    "UP",   # pyupgrade (Python 版本升级建议)
+]
+ignore = [
+    "E501",  # 行长度超限（由格式化工具处理）
+    "B008",  # 函数参数默认值中调用（FastAPI Depends 依赖注入的标准写法）
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+# =============================================================================
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+pythonpath = ["backend"]
+addopts = "-v --tb=short"
+
+# =============================================================================
+
+[tool.coverage.run]
+source = ["backend/app"]
+omit = [
+    "*/tests/*",
+    "*/alembic/*",
+]
+
+[tool.coverage.report]
+fail_under = 60
+show_missing = true
