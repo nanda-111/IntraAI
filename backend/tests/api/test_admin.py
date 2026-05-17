@@ -1,7 +1,6 @@
 """管理后台 API 集成测试"""
 
 
-
 class TestAdminUsers:
     def test_list_users(self, client, admin_headers, test_user):
         res = client.get("/api/admin/users", headers=admin_headers)
@@ -69,6 +68,7 @@ class TestAdminUsageLogs:
         # 先插入一条日志，确保 get_usage_logs 的循环体被执行
         from app.models.usage_log import UsageLog
         from app.models.user import User
+
         user = db_session.query(User).first()
         if user:
             log = UsageLog(user_id=user.id, action="test_action", tokens_used=100)

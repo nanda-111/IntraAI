@@ -1,7 +1,6 @@
 """知识库 API 集成测试"""
 
 
-
 class TestCreateKB:
     def test_create_kb(self, client, user_headers):
         res = client.post(

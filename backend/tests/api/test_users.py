@@ -1,7 +1,6 @@
 """用户 API 集成测试（/me）"""
 
 
-
 class TestGetMe:
     """获取当前用户信息"""
 

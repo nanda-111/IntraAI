@@ -1,7 +1,6 @@
 """会话 API 集成测试"""
 
 
-
 class TestCreateSession:
     def test_create_session(self, client, user_headers):
         res = client.post("/api/sessions/", headers=user_headers)

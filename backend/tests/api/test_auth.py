@@ -1,7 +1,6 @@
 """认证 API 集成测试（register / login）"""
 
 
-
 class TestRegister:
     """注册接口测试"""
 
