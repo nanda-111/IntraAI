@@ -13,9 +13,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import hash_password, verify_password, create_access_token
+from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User
-from app.schemas.user import UserCreate, UserLogin, Token, UserOut
+from app.schemas.user import Token, UserCreate, UserLogin, UserOut
 
 # ==================== 路由器定义 ====================
 # APIRouter 是 FastAPI 的路由器类，用于将相关的路由组织在一起。
@@ -77,8 +77,8 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
         hashed_password=hash_password(data.password),
         is_admin=is_first,
     )
-    db.add(user)      # 将新用户添加到数据库会话
-    db.commit()       # 提交事务，将数据持久化到数据库
+    db.add(user)  # 将新用户添加到数据库会话
+    db.commit()  # 提交事务，将数据持久化到数据库
     db.refresh(user)  # 刷新对象，获取数据库生成的字段（如 id、created_at）
     return user
 

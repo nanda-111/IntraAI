@@ -18,6 +18,7 @@
 """
 
 from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -28,6 +29,7 @@ class UserCreate(BaseModel):
     当用户调用注册接口时，请求体必须包含以下三个字段。
     Pydantic 会自动校验这些字段是否存在且类型正确。
     """
+
     username: str  # 用户名
     email: str  # 邮箱地址
     password: str  # 明文密码（在路由层会被哈希后存入数据库）
@@ -39,6 +41,7 @@ class UserLogin(BaseModel):
 
     登录时只需要用户名和密码，不需要邮箱。
     """
+
     username: str  # 用户名
     password: str  # 明文密码
 
@@ -62,6 +65,7 @@ class UserOut(BaseModel):
         user_db = session.query(User).first()  # SQLAlchemy ORM 对象
         user_schema = UserOut.model_validate(user_db)  # 自动转换为 Pydantic 模型
     """
+
     id: int  # 用户 ID（数据库自增主键）
     username: str  # 用户名
     email: str  # 邮箱地址
@@ -88,6 +92,7 @@ class Token(BaseModel):
         Authorization: Bearer <access_token>
     这是 OAuth 2.0 和 JWT 认证的行业标准做法。
     """
+
     access_token: str  # JWT 访问令牌
     token_type: str = "bearer"  # 令牌类型，默认为 "bearer"
     user: UserOut  # 登录用户的完整信息

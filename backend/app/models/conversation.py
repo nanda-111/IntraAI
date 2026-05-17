@@ -8,7 +8,7 @@
 后续可扩展为多轮对话（通过添加 parent_id 字段实现对话树结构）。
 """
 
-from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text
 from sqlalchemy.sql import func
 
 from app.core.database import Base

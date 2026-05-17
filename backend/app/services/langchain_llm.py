@@ -12,15 +12,17 @@ MiMo 特殊处理：
   2. _get_request_payload：将 AIMessage 中的 reasoning_content 注入 API 请求
 """
 
-from typing import Any, List
+from typing import Any
 
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import AIMessage, BaseMessage
+from langchain_openai import ChatOpenAI
 from langchain_openai.chat_models import base as _lc_base
-from langchain_openai.chat_models.base import _convert_message_to_dict, _convert_from_v1_to_chat_completions
+from langchain_openai.chat_models.base import (
+    _convert_from_v1_to_chat_completions,
+    _convert_message_to_dict,
+)
 
 from app.core.config import settings
-
 
 # ==================== 补丁 1: 捕获 reasoning_content ====================
 # LangChain 的 _convert_dict_to_message 不提取 reasoning_content。
@@ -57,6 +59,7 @@ _lc_base._convert_delta_to_message_chunk = _convert_delta_to_message_chunk_with_
 
 # ==================== 补丁 2: 回传 reasoning_content ====================
 # 在 _get_request_payload 中注入 reasoning_content 到 API 请求。
+
 
 def _inject_reasoning(msg_dict: dict, original_msg: BaseMessage) -> dict:
     if (

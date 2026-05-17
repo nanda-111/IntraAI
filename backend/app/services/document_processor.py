@@ -3,7 +3,7 @@
 
 功能：
   - 从 PDF/Word/TXT/Markdown 文件中提取纯文本
-  - 将长文本按固定长度切分为多个小片段（chunk），相邻片段之间有重叠
+  - 将长文本按段落和句子边界切分为多个小片段（chunk）
 
 这是 RAG（检索增强生成）系统的核心步骤：
   1. 文档上传 → 提取文本 → 切分为小片段
@@ -11,9 +11,12 @@
   3. 用户提问时，检索最相关的片段，交给大模型生成回答
 """
 
-import os
+import re
+
 import fitz  # PyMuPDF — 用于解析 PDF 文件（需安装：pip install PyMuPDF）
-from docx import Document as DocxDocument  # python-docx — 用于解析 .docx 文件（需安装：pip install python-docx）
+from docx import (
+    Document as DocxDocument,  # python-docx — 用于解析 .docx 文件（需安装：pip install python-docx）
+)
 
 
 def extract_text(filepath: str, file_type: str) -> str:
@@ -81,65 +84,122 @@ def _extract_text_file(filepath: str) -> str:
     使用 UTF-8 编码是因为它兼容 ASCII，且能正确处理中文等多字节字符。
     如果遇到编码问题，可以考虑改用 chardet 库自动检测编码。
     """
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         return f.read()
+
+
+# 中英文句子结束标点
+_SENTENCE_ENDINGS = re.compile(r"(?<=[。！？.!?；\n])")
+
+
+def _split_by_sentence(paragraph: str, chunk_size: int) -> list[str]:
+    """将单个段落按句子边界切割，超长单句按字符兜底。"""
+    # 按句子标点切分，保留标点
+    sentences = [s.strip() for s in _SENTENCE_ENDINGS.split(paragraph) if s.strip()]
+
+    # 没有句子标点，直接按字符兜底
+    if not sentences:
+        return [paragraph[i : i + chunk_size] for i in range(0, len(paragraph), chunk_size)] or []
+
+    chunks = []
+    current = ""
+    for sent in sentences:
+        if not current:
+            current = sent
+        elif len(current) + len(sent) <= chunk_size:
+            current += sent
+        else:
+            if current:
+                chunks.append(current)
+            # 单句超长，按字符兜底切割
+            if len(sent) > chunk_size:
+                for i in range(0, len(sent), chunk_size):
+                    piece = sent[i : i + chunk_size]
+                    if piece:
+                        chunks.append(piece)
+                current = ""
+            else:
+                current = sent
+    if current:
+        chunks.append(current)
+    return chunks
 
 
 def split_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
     """
-    将长文本切分为多个小片段（chunk），相邻片段之间有重叠。
+    将长文本切分为多个小片段（chunk），优先在段落和句子边界处切割。
 
-    ---- 为什么需要切片？ ----
-    1. Embedding API 对单次输入有长度限制（例如 OpenAI 的 text-embedding-ada-002 最多 8191 个 token）
-       如果直接将整篇文档送入，可能会超长导致报错
-    2. 小片段的向量表示更精确：一个向量最好只编码一个主题/段落的信息
-       如果一个向量包含太多内容，检索时的语义匹配精度会下降
-    3. 检索时只需返回最相关的几个片段，而不是整个文档，节省上下文窗口
-
-    ---- overlap 的作用 ----
-    相邻片段之间保留 overlap 个字符的重叠区域，目的是：
-    - 防止关键句子在切片边界被切断，导致语义丢失
-    - 例如："今天天气很好。我们决定去公园。" 如果刚好在"。"处切开，
-      第一个片段可能只看到"今天天气很好"，第二个片段只看到"我们决定去公园"。
-      有了 overlap，两个片段都会包含完整的一句话。
+    切割策略（由粗到细）：
+      1. 先按段落分（双换行 \\n\\n）
+      2. 如果某段超过 chunk_size，按句子分（。！？.!?）
+      3. 如果单句仍超长，按字符数兜底
+      4. 相邻 chunk 之间保留 overlap（取前一个 chunk 的末尾句子）
 
     参数：
         text: 原始文本
         chunk_size: 每个片段的最大字符数（默认 500）
         overlap: 相邻片段之间的重叠字符数（默认 50）
 
-    工作原理（以 text="ABCDEFGHIJ", chunk_size=5, overlap=2 为例）：
-      第 1 片：text[0:5] = "ABCDE"，下一个起点 = 5 - 2 = 3
-      第 2 片：text[3:8] = "DEFGH"，下一个起点 = 8 - 2 = 6
-      第 3 片：text[6:11] = "GHIJ"（文本末尾，不足 chunk_size 就取剩余部分）
-
     返回：
         切分后的片段列表，每个元素是一个非空字符串
     """
-    # 空文本或纯空白文本直接返回空列表，避免产生无意义的空片段
     if not text.strip():
         return []
 
-    # 防止 overlap >= chunk_size 导致死循环：overlap 必须小于 chunk_size
     if overlap >= chunk_size:
         overlap = chunk_size - 1
 
+    # 第一步：按段落分（双换行为段落分隔）
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+
+    # 第二步：处理每个段落，超长段落按句子切割
+    # 每个段落（或其切分后的子片段）成为一个独立 chunk，不跨段落合并
     chunks = []
-    start = 0  # 当前片段的起始位置
-    while start < len(text):
-        # 计算当前片段的结束位置
-        end = start + chunk_size
-        # 截取 [start, end) 范围内的文本
-        chunk = text[start:end].strip()
-        # strip() 的必要性：由于 overlap 机制，某些片段的开头可能包含
-        # 上一片尾部的空白字符（如换行符、空格），strip() 可以去除这些
-        # 不影响语义的多余空白，保证每个片段都是干净的纯文本
-        if chunk:
-            chunks.append(chunk)
-        # 如果当前片段已经覆盖到文本末尾（或超出），无需再切，结束循环
-        if end >= len(text):
-            break
-        # 下一个片段的起点 = 当前终点 - overlap
-        # 这样相邻两个片段之间就有 overlap 个字符的重叠区域
-        start = end - overlap
-    return chunks
+    for para in paragraphs:
+        if len(para) <= chunk_size:
+            chunks.append(para)
+        else:
+            sub_chunks = _split_by_sentence(para, chunk_size)
+            for sc in sub_chunks:
+                if len(sc) <= chunk_size:
+                    chunks.append(sc)
+                else:
+                    # 句子切割后仍超长，按字符兜底
+                    for i in range(0, len(sc), chunk_size):
+                        piece = sc[i : i + chunk_size]
+                        if piece:
+                            chunks.append(piece)
+
+    # 第三步：添加 overlap（取前一个 chunk 的末尾句子作为下一个 chunk 的开头）
+    if len(chunks) <= 1:
+        return chunks
+
+    result = [chunks[0]]
+    for i in range(1, len(chunks)):
+        prev = chunks[i - 1]
+        curr = chunks[i]
+        # 从上一个 chunk 尾部提取末尾句子作为 overlap
+        overlap_text = _extract_tail(prev, overlap)
+        if overlap_text:
+            combined = overlap_text + curr
+            # 如果合并后超长，只保留能放下的部分
+            if len(combined) <= chunk_size:
+                result.append(combined)
+            else:
+                result.append(curr)
+        else:
+            result.append(curr)
+    return result
+
+
+def _extract_tail(text: str, max_len: int) -> str:
+    """提取文本末尾的内容作为 overlap，优先取完整句子。"""
+    if len(text) <= max_len:
+        return text
+    tail = text[-max_len:]
+    # 尝试从句子边界开始
+    for ending in ("。", "！", "？", ".", "!", "?", "；", "\n"):
+        idx = tail.find(ending)
+        if idx >= 0:
+            return tail[idx + 1 :]
+    return tail

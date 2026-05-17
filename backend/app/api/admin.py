@@ -19,13 +19,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
 from app.api.deps import get_admin_user
-from app.models.user import User
-from app.models.knowledge_base import KnowledgeBase
-from app.models.document import Document
-from app.models.usage_log import UsageLog
+from app.core.database import get_db
 from app.models.conversation import Conversation
+from app.models.document import Document
+from app.models.knowledge_base import KnowledgeBase
+from app.models.usage_log import UsageLog
+from app.models.user import User
 from app.schemas.user import UserOut
 
 # 管理后台路由 — 所有接口都需要管理员权限
@@ -35,6 +35,7 @@ router = APIRouter(prefix="/api/admin", tags=["管理后台"], dependencies=[Dep
 
 
 # ==================== 用户管理 ====================
+
 
 @router.get("/users", response_model=list[UserOut])
 def list_users(db: Session = Depends(get_db)):
@@ -69,6 +70,7 @@ def toggle_admin(user_id: int, db: Session = Depends(get_db)):
 
 # ==================== 知识库管理 ====================
 
+
 @router.get("/knowledge-bases")
 def admin_list_kbs(db: Session = Depends(get_db)):
     """
@@ -100,25 +102,28 @@ def admin_list_kbs(db: Session = Depends(get_db)):
         doc_count = db.query(Document).filter(Document.kb_id == kb.id).count()
         # 查询该知识库的所有者
         owner = db.query(User).filter(User.id == kb.owner_id).first()
-        result.append({
-            "id": kb.id,
-            "name": kb.name,
-            "description": kb.description,
-            "owner": owner.username if owner else "已删除",
-            "doc_count": doc_count,
-            "created_at": kb.created_at,
-        })
+        result.append(
+            {
+                "id": kb.id,
+                "name": kb.name,
+                "description": kb.description,
+                "owner": owner.username if owner else "已删除",
+                "doc_count": doc_count,
+                "created_at": kb.created_at,
+            }
+        )
     return result
 
 
 # ==================== 用量统计 ====================
+
 
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
     """获取平台统计数据（用户数、知识库数、文档数、对话数等）"""
     return {
         "user_count": db.query(User).count(),
-        "active_user_count": db.query(User).filter(User.is_active == True).count(),
+        "active_user_count": db.query(User).filter(User.is_active.is_(True)).count(),
         "kb_count": db.query(KnowledgeBase).count(),
         "doc_count": db.query(Document).count(),
         "chat_count": db.query(Conversation).count(),
@@ -127,8 +132,8 @@ def get_stats(db: Session = Depends(get_db)):
 
 @router.get("/usage-logs")
 def get_usage_logs(
-    page: int = Query(1, ge=1),            # 页码，从 1 开始，最小值为 1
-    size: int = Query(20, ge=1, le=100),   # 每页条数，范围 1-100
+    page: int = Query(1, ge=1),  # 页码，从 1 开始，最小值为 1
+    size: int = Query(20, ge=1, le=100),  # 每页条数，范围 1-100
     db: Session = Depends(get_db),
 ):
     """
@@ -152,13 +157,7 @@ def get_usage_logs(
     # 根据页码和每页条数计算偏移量
     offset = (page - 1) * size
     # 查询当前页的数据：按创建时间倒序，跳过 offset 条，取 size 条
-    logs = (
-        db.query(UsageLog)
-        .order_by(UsageLog.created_at.desc())
-        .offset(offset)
-        .limit(size)
-        .all()
-    )
+    logs = db.query(UsageLog).order_by(UsageLog.created_at.desc()).offset(offset).limit(size).all()
     # 查询总记录数，用于前端分页控件
     total = db.query(UsageLog).count()
 
@@ -166,11 +165,13 @@ def get_usage_logs(
     result = []
     for log in logs:
         user = db.query(User).filter(User.id == log.user_id).first()
-        result.append({
-            "id": log.id,
-            "user": user.username if user else "已删除",
-            "action": log.action,
-            "tokens_used": log.tokens_used,
-            "created_at": log.created_at,
-        })
+        result.append(
+            {
+                "id": log.id,
+                "user": user.username if user else "已删除",
+                "action": log.action,
+                "tokens_used": log.tokens_used,
+                "created_at": log.created_at,
+            }
+        )
     return {"total": total, "items": result}

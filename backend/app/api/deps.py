@@ -95,9 +95,9 @@ def get_current_user(
         if username is None:
             # payload 中缺少 sub 字段，说明令牌格式不正确
             raise HTTPException(status_code=401, detail="无效的令牌")
-    except JWTError:
+    except JWTError as err:
         # 令牌签名验证失败、令牌过期或其他 JWT 解析错误
-        raise HTTPException(status_code=401, detail="无效的令牌")
+        raise HTTPException(status_code=401, detail="无效的令牌") from err
 
     # 根据用户名查询数据库
     user = db.query(User).filter(User.username == username).first()

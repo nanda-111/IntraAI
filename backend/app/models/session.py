@@ -5,7 +5,7 @@
 每个会话包含多轮对话记录，支持摘要压缩以控制 LLM 上下文 token 消耗。
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.core.database import Base

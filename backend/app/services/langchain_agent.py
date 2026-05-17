@@ -1,13 +1,13 @@
 """LangChain Agent — 组装 Agent（LLM + Tools + Prompt）并提供执行接口。"""
 
 import logging
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from langchain.agents import create_agent
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from app.services.langchain_llm import get_mimo_llm
-from app.services.langchain_tools import rag_search, db_query, web_search
+from app.services.langchain_tools import db_query, rag_search, web_search
 
 logger = logging.getLogger(__name__)
 

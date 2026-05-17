@@ -31,11 +31,11 @@ class Settings(BaseSettings):
     # ==================== MySQL 数据库配置 ====================
     # 这些配置项用于连接 MySQL 数据库，供 SQLAlchemy ORM 使用
 
-    MYSQL_HOST: str = "localhost"      # MySQL 服务器地址，默认为本机（localhost）
-    MYSQL_PORT: int = 3306             # MySQL 服务端口号，默认 3306
-    MYSQL_USER: str = "root"           # 数据库用户名，默认 root
-    MYSQL_PASSWORD: str = ""           # 数据库密码，默认为空（开发环境）
-    MYSQL_DB: str = "intraai"          # 要连接的数据库名称
+    MYSQL_HOST: str = "localhost"  # MySQL 服务器地址，默认为本机（localhost）
+    MYSQL_PORT: int = 3306  # MySQL 服务端口号，默认 3306
+    MYSQL_USER: str = "root"  # 数据库用户名，默认 root
+    MYSQL_PASSWORD: str = ""  # 数据库密码，默认为空（开发环境）
+    MYSQL_DB: str = "intraai"  # 要连接的数据库名称
 
     # ==================== JWT 认证配置 ====================
     # JWT（JSON Web Token）用于用户身份认证，配合 python-jose 库使用
@@ -47,16 +47,16 @@ class Settings(BaseSettings):
     # 使用小米 MiMo 大模型 API（兼容 OpenAI 接口协议）
     # 环境变量名沿用 OPENAI_* 是为了保持代码兼容性，实际调用的是 MiMo 服务
 
-    OPENAI_API_KEY: str = ""                          # MiMo API 密钥，必须在 .env 中配置
+    OPENAI_API_KEY: str = ""  # MiMo API 密钥，必须在 .env 中配置
     OPENAI_BASE_URL: str = "https://token-plan-cn.xiaomimimo.com/v1"  # MiMo API 地址
-    OPENAI_MODEL: str = "mimo-v2-pro"                 # 默认聊天模型：MiMo v2 Pro
+    OPENAI_MODEL: str = "mimo-v2-pro"  # 默认聊天模型：MiMo v2 Pro
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"  # 文本向量嵌入模型
 
     # ==================== 文件存储路径配置 ====================
     # 本地文件系统的存储目录
 
-    UPLOAD_DIR: str = "./uploads"       # 用户上传文件的存储目录
-    CHROMA_DIR: str = "./chroma_data"   # ChromaDB 向量数据库的数据持久化目录
+    UPLOAD_DIR: str = "./uploads"  # 用户上传文件的存储目录
+    CHROMA_DIR: str = "./chroma_data"  # ChromaDB 向量数据库的数据持久化目录
 
     @property
     def DATABASE_URL(self) -> str:
@@ -82,6 +82,7 @@ class Settings(BaseSettings):
         pydantic-settings 会在项目运行时自动读取这个文件，
         将其中的 KEY=VALUE 映射到 Settings 类的对应字段上。
         """
+
         env_file = ".env"
 
 

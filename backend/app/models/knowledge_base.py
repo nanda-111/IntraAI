@@ -6,7 +6,7 @@
 后续可对知识库内的文档进行切片、向量化，供检索增强生成（RAG）使用。
 """
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.core.database import Base

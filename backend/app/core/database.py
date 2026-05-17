@@ -20,7 +20,7 @@
 """
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.core.config import settings
 
@@ -57,6 +57,7 @@ class Base(DeclarativeBase):
           id = Column(Integer, primary_key=True)
           name = Column(String(100))
     """
+
     pass
 
 

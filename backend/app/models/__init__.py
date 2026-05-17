@@ -18,9 +18,9 @@
   3. 这样 main.py 中的 import app.models 就会自动加载新模型
 """
 
-from app.models.user import User
-from app.models.knowledge_base import KnowledgeBase
-from app.models.document import Document
-from app.models.conversation import Conversation
-from app.models.usage_log import UsageLog
-from app.models.session import Session
+from app.models.conversation import Conversation as Conversation
+from app.models.document import Document as Document
+from app.models.knowledge_base import KnowledgeBase as KnowledgeBase
+from app.models.session import Session as Session
+from app.models.usage_log import UsageLog as UsageLog
+from app.models.user import User as User

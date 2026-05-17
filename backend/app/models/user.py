@@ -12,7 +12,7 @@ SQLAlchemy 通过声明式映射（Declarative Mapping）将 Python 类与数据
     SQLAlchemy 通过 Base.metadata 收集所有继承了 Base 的子类，从而知道有哪些表需要管理。
 """
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from sqlalchemy.sql import func
 
 from app.core.database import Base

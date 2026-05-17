@@ -174,8 +174,5 @@ def generate_summary(conversations: list[dict]) -> str:
         role_label = "用户" if conv["role"] == "user" else "AI"
         history_text += f"{role_label}：{conv['content']}\n\n"
 
-    prompt = (
-        "请用简洁的语言概括以下对话的主要内容和结论，控制在200字以内：\n\n"
-        f"{history_text}"
-    )
+    prompt = f"请用简洁的语言概括以下对话的主要内容和结论，控制在200字以内：\n\n{history_text}"
     return chat_completion([{"role": "user", "content": prompt}])

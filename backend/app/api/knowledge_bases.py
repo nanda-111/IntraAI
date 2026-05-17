@@ -33,11 +33,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
 from app.api.deps import get_current_user
-from app.models.user import User
+from app.core.database import get_db
 from app.models.knowledge_base import KnowledgeBase
-from app.schemas.knowledge_base import KBCreate, KBUpdate, KBOut
+from app.models.user import User
+from app.schemas.knowledge_base import KBCreate, KBOut, KBUpdate
 
 # 创建路由实例
 # prefix：所有路由的 URL 前缀，统一管理知识库相关的接口路径

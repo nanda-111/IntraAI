@@ -10,6 +10,7 @@ Pydantic 模型的作用：
 """
 
 from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -22,6 +23,7 @@ class KBCreate(BaseModel):
     - owner_id 不可由前端指定：由后端从当前登录用户的 JWT 令牌中自动提取，
       防止用户伪造创建者身份（安全考虑）。
     """
+
     name: str
     description: str | None = None
 
@@ -34,6 +36,7 @@ class KBUpdate(BaseModel):
       用户只需传入想修改的字段，未传入的字段保持原值。
     - 在路由处理函数中通过 "if data.name is not None" 来判断用户是否传入了该字段。
     """
+
     name: str | None = None
     description: str | None = None
 
@@ -48,6 +51,7 @@ class KBOut(BaseModel):
     - from_attributes = True：告诉 Pydantic 可以从 ORM 对象的属性中读取数据，
       而不仅仅从字典中读取。这是 SQLAlchemy + Pydantic 集成的关键配置。
     """
+
     id: int
     name: str
     description: str | None

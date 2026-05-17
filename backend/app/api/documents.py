@@ -15,15 +15,16 @@
 """
 
 import os
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.database import get_db
-from app.api.deps import get_current_user
-from app.models.user import User
-from app.models.knowledge_base import KnowledgeBase
 from app.models.document import Document
+from app.models.knowledge_base import KnowledgeBase
+from app.models.user import User
 from app.schemas.document import DocumentOut
 from app.services.document_processor import extract_text, split_text
 from app.services.embedding import get_embeddings
@@ -64,11 +65,13 @@ def search_kb(
     query_embedding = get_embeddings([query])[0]
 
     # 3. 在知识库中检索最相关的 3 个切片
-    # search 函数内部通过 ChromaDB 执行余弦相似度计算，返回 top_k 个最匹配的文本片段
     results = search(kb_id, query_embedding, top_k=3)
 
-    # 4. 返回查询词和检索结果，便于前端展示和调试
-    return {"query": query, "results": results}
+    # 4. 返回查询词和检索结果（含来源元数据）
+    return {
+        "query": query,
+        "results": [{"text": text, "source": meta.get("source", "")} for text, meta in results],
+    }
 
 
 @router.post("/upload/{kb_id}", response_model=DocumentOut)
@@ -161,14 +164,13 @@ async def upload_document(
         #   - 某一批失败时，只需重试该批，而不是全部重来
         all_embeddings = []
         for i in range(0, len(chunks), 100):
-            batch = chunks[i:i + 100]
+            batch = chunks[i : i + 100]
             embs = get_embeddings(batch)
             all_embeddings.extend(embs)
 
         # 步骤 4：将文本切片和向量存入 ChromaDB
-        # add_documents 返回成功写入的切片数量，作为文档的 chunk_count
-        # 该值在数据库中记录，供前端展示和后续管理使用
-        chunk_count = add_documents(kb_id, chunks, all_embeddings)
+        metadatas = [{"source": file.filename}] * len(chunks)
+        chunk_count = add_documents(kb_id, chunks, all_embeddings, metadatas)
 
     # 【异常处理说明】
     #   当前代码未使用 try/except 包裹流水线，这意味着：

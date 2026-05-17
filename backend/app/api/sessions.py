@@ -1,15 +1,15 @@
 """会话管理 API 路由"""
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session as DbSession
 from sqlalchemy import desc
+from sqlalchemy.orm import Session as DbSession
 
-from app.core.database import get_db
 from app.api.deps import get_current_user
-from app.models.user import User
-from app.models.session import Session
+from app.core.database import get_db
 from app.models.conversation import Conversation
-from app.schemas.session import SessionOut, SessionDetail, ConversationItem
+from app.models.session import Session
+from app.models.user import User
+from app.schemas.session import ConversationItem, SessionDetail, SessionOut
 
 router = APIRouter(prefix="/api/sessions", tags=["会话"])
 

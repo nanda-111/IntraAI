@@ -16,6 +16,7 @@
 
 import os
 from pathlib import Path
+
 from sentence_transformers import SentenceTransformer
 
 # 设置 HuggingFace 镜像（国内网络环境需要）

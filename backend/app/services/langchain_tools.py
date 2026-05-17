@@ -2,13 +2,13 @@
 
 import re
 
-from langchain_core.tools import tool
 from langchain_community.tools import DuckDuckGoSearchRun
+from langchain_core.tools import tool
 from sqlalchemy import text
 
+from app.core.database import SessionLocal
 from app.services.embedding import get_embeddings
 from app.services.vector_store import search as vector_search
-from app.core.database import SessionLocal
 
 _ddg_search = DuckDuckGoSearchRun()
 
@@ -21,10 +21,17 @@ def rag_search(query: str) -> str:
         embeddings = get_embeddings([query])
         if not embeddings:
             return "向量化失败，无法搜索知识库。"
-        chunks = vector_search(kb_id=1, query_embedding=embeddings[0], top_k=5)
-        if not chunks:
+        results = vector_search(kb_id=1, query_embedding=embeddings[0], top_k=5)
+        if not results:
             return "知识库中没有找到相关内容。"
-        return "\n\n---\n\n".join(chunks)
+        parts = []
+        for text, meta in results:
+            source = meta.get("source", "")
+            if source:
+                parts.append(f"[来源: {source}]\n{text}")
+            else:
+                parts.append(text)
+        return "\n\n---\n\n".join(parts)
     except Exception as e:
         return f"知识库搜索出错：{str(e)}"
 
@@ -41,7 +48,7 @@ def db_query(sql: str) -> str:
         return "错误：只允许 SELECT 查询语句。"
 
     for kw in ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "TRUNCATE", "CREATE"]:
-        if re.search(r'\b' + kw + r'\b', sql_upper):
+        if re.search(r"\b" + kw + r"\b", sql_upper):
             return f"错误：禁止使用 {kw} 语句。"
 
     try:

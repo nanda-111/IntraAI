@@ -6,7 +6,7 @@
 后续会对文档进行切片（chunking）并生成向量嵌入（embedding），供 RAG 检索使用。
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.sql import func
 
 from app.core.database import Base

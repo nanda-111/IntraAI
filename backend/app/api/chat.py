@@ -10,18 +10,19 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from sqlalchemy import asc
+from sqlalchemy import func as sql_func
 from sqlalchemy.orm import Session as DbSession
-from sqlalchemy import func as sql_func, asc
 
-from app.core.database import get_db
 from app.api.deps import get_current_user
-from app.models.user import User
-from app.models.session import Session
+from app.core.database import get_db
 from app.models.conversation import Conversation
+from app.models.session import Session
 from app.models.usage_log import UsageLog
+from app.models.user import User
 from app.schemas.chat import ChatRequest, ChatResponse
+from app.services.llm import chat_completion, generate_summary, generate_title
 from app.services.rag import ask_with_rag
-from app.services.llm import chat_completion, generate_title, generate_summary
 
 router = APIRouter(prefix="/api/chat", tags=["对话"])
 
@@ -89,11 +90,7 @@ def _post_chat(session: Session | None, data: ChatRequest, answer: str, db: DbSe
 
 def _maybe_compress(session_id: int, db: DbSession):
     """检查会话对话数量，超过 20 轮时触发摘要压缩"""
-    conv_count = (
-        db.query(Conversation)
-        .filter(Conversation.session_id == session_id)
-        .count()
-    )
+    conv_count = db.query(Conversation).filter(Conversation.session_id == session_id).count()
 
     if conv_count < 20:
         return
@@ -151,6 +148,7 @@ def chat(
     # Agent 模式
     if data.mode == "agent":
         from app.services.langchain_agent import run_agent as agent_run
+
         answer = agent_run(data.question, history)
     elif data.kb_id:
         answer = ask_with_rag(data.question, data.kb_id, history=history, summary=summary)
@@ -193,6 +191,7 @@ def chat_stream(
             if data.mode == "agent":
                 # Agent 流式模式
                 import asyncio
+
                 from app.services.langchain_agent import run_agent_stream as agent_stream
 
                 loop = asyncio.new_event_loop()
@@ -210,14 +209,20 @@ def chat_stream(
                     loop.close()
             elif data.kb_id:
                 from app.services.rag import ask_with_rag_stream
-                for chunk in ask_with_rag_stream(data.question, data.kb_id, history=history, summary=summary):
+
+                for chunk in ask_with_rag_stream(
+                    data.question, data.kb_id, history=history, summary=summary
+                ):
                     full_answer += chunk
                     yield f"data: {chunk}\n\n"
             elif history or summary:
                 from app.services.llm import chat_completion_stream as llm_stream
+
                 messages = []
                 if summary:
-                    messages.append({"role": "system", "content": f"以下是对之前对话的摘要：\n{summary}"})
+                    messages.append(
+                        {"role": "system", "content": f"以下是对之前对话的摘要：\n{summary}"}
+                    )
                 if history:
                     messages.extend(history)
                 messages.append({"role": "user", "content": data.question})
@@ -226,6 +231,7 @@ def chat_stream(
                     yield f"data: {chunk}\n\n"
             else:
                 from app.services.llm import chat_completion_stream as llm_stream
+
                 for chunk in llm_stream([{"role": "user", "content": data.question}]):
                     full_answer += chunk
                     yield f"data: {chunk}\n\n"

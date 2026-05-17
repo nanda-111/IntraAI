@@ -7,7 +7,7 @@
 后续可扩展为计费依据（记录 Token 消耗量）。
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.sql import func
 
 from app.core.database import Base

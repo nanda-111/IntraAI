@@ -5,13 +5,12 @@ Alembic 迁移环境配置
   - 数据库连接串（来自 app.core.config.settings）
   - ORM 模型元数据（来自 app.core.database.Base）
 """
+
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # 将 backend/ 目录加入 Python 路径，使 `from app.core...` 导入可以正常工作
 # alembic 命令在 backend/ 目录下运行，但 env.py 在 alembic/ 子目录中，
@@ -19,12 +18,10 @@ from alembic import context
 sys.path.insert(0, ".")
 
 # 导入项目的数据库配置和 ORM 基类
-from app.core.config import settings
-from app.core.database import Base
-
 # 导入所有模型，确保 Base.metadata 收集到所有表定义
 # 不导入的话，autogenerate 会认为数据库中没有表
-import app.models
+from app.core.config import settings
+from app.core.database import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -82,9 +79,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
