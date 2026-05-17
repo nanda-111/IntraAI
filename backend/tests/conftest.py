@@ -50,7 +50,17 @@ def db_session():
 @pytest.fixture
 def client(db_session):
     """带测试数据库的 FastAPI TestClient"""
+    import sys
+    from unittest.mock import MagicMock
+
+    # mock sentence_transformers（CI 环境中可能未安装）
+    if "sentence_transformers" not in sys.modules:
+        sys.modules["sentence_transformers"] = MagicMock()
+
     from app.main import app
+
+    # 清除 startup 事件（避免在 CI 中执行 alembic 迁移）
+    app.router.on_startup.clear()
 
     def _override_get_db():
         yield db_session
