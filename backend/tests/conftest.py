@@ -16,7 +16,6 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.core.security import create_access_token, hash_password
-from app.main import app
 from app.models.user import User
 
 # ---- 测试数据库 ----
@@ -51,6 +50,7 @@ def db_session():
 @pytest.fixture
 def client(db_session):
     """带测试数据库的 FastAPI TestClient"""
+    from app.main import app
 
     def _override_get_db():
         yield db_session
