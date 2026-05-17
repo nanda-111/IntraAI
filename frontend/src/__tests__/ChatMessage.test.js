@@ -7,7 +7,7 @@ describe('ChatMessage', () => {
     const wrapper = mount(ChatMessage, {
       props: { message: { role: 'user', content: '你好' } },
     })
-    expect(wrapper.classes()).toContain('user')
+    expect(wrapper.find('.message.user').exists()).toBe(true)
     expect(wrapper.find('.avatar').text()).toBe('我')
   })
 
@@ -15,7 +15,7 @@ describe('ChatMessage', () => {
     const wrapper = mount(ChatMessage, {
       props: { message: { role: 'assistant', content: '你好！' } },
     })
-    expect(wrapper.classes()).toContain('assistant')
+    expect(wrapper.find('.message.assistant').exists()).toBe(true)
     expect(wrapper.find('.avatar').text()).toBe('AI')
   })
 
