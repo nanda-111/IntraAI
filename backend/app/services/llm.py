@@ -54,44 +54,16 @@ from app.core.config import settings
 client = OpenAI(api_key=settings.OPENAI_API_KEY, base_url=settings.OPENAI_BASE_URL)
 
 
-def chat_completion(messages: list[dict], model: str | None = None) -> str:
-    """
-    调用大语言模型，获取完整的回答文本。
-
-    这是普通（非流式）调用方式，适用于：
-      - 不需要实时展示的后台任务（如文档摘要、文本分析）
-      - 需要完整回答后再做后续处理的场景
-      - 对响应时间不敏感的简单查询
-
-    参数：
-        messages: 对话消息列表，格式如：
-            [
-                {"role": "system", "content": "你是一个助手"},
-                {"role": "user", "content": "你好"},
-                {"role": "assistant", "content": "你好！有什么可以帮助你的？"},
-                {"role": "user", "content": "介绍一下你自己"},
-            ]
-        model: 使用的模型名称，默认使用配置中的 OPENAI_MODEL（如 gpt-4o-mini）
-
-    返回：
-        AI 的完整回答文本（字符串）
-
-    关于 temperature 参数：
-      - temperature 控制模型输出的随机程度，取值范围通常为 0.0 ~ 2.0
-      - temperature = 0：输出最确定、最稳定，适合需要精确答案的场景（如代码生成）
-      - temperature = 0.7：适中的随机性，平衡创造性和准确性（本模块使用的默认值）
-      - temperature = 1.0+：输出更多样化、更有创意，但可能不够准确
-      - 工作原理：temperature 影响 token 概率分布的平滑程度
-        temperature 越高，低概率 token 被选中的机会越大，输出越多样化
-    """
+def chat_completion(messages: list[dict], model: str | None = None) -> tuple[str, str]:
     response = client.chat.completions.create(
         model=model or settings.OPENAI_MODEL,
         messages=messages,
-        temperature=0.7,  # 中等随机性，兼顾回答质量和多样性
+        temperature=0.7,
     )
-    # response.choices 是返回的候选回答列表（通常只有一个）
-    # .message.content 是回答的文本内容
-    return response.choices[0].message.content
+    msg = response.choices[0].message
+    reasoning = getattr(msg, "reasoning_content", None) or ""
+    answer = msg.content or ""
+    return reasoning, answer
 
 
 def chat_completion_stream(messages: list[dict], model: str | None = None):
@@ -126,17 +98,16 @@ def chat_completion_stream(messages: list[dict], model: str | None = None):
         model=model or settings.OPENAI_MODEL,
         messages=messages,
         temperature=0.7,
-        stream=True,  # 启用流式输出，API 将以 SSE 事件流的方式返回数据
+        stream=True,
     )
 
-    # 遍历流式响应中的每个 chunk（数据块）
-    # 每个 chunk 包含一个 delta（增量），即新生成的一小段文本
     for chunk in response:
-        # chunk.choices[0].delta.content 是当前 chunk 的增量文本内容
-        # 注意：某些 chunk 的 content 可能为 None（如表示流结束的最后一个 chunk）
-        # 因此需要先判断是否为 None，避免将 None yield 出去
-        if chunk.choices[0].delta.content:
-            yield chunk.choices[0].delta.content
+        delta = chunk.choices[0].delta
+        reasoning = getattr(delta, "reasoning_content", None)
+        if reasoning:
+            yield {"type": "reasoning", "content": reasoning}
+        elif delta.content:
+            yield {"type": "answer", "content": delta.content}
 
 
 def generate_title(question: str, answer: str) -> str:
@@ -155,7 +126,7 @@ def generate_title(question: str, answer: str) -> str:
         f"用户问：{question}\n"
         f"AI答：{answer}"
     )
-    title = chat_completion([{"role": "user", "content": prompt}])
+    _, title = chat_completion([{"role": "user", "content": prompt}])
     return title.strip().strip('"').strip("'").strip("「」").strip("“”")[:50]
 
 
@@ -175,4 +146,5 @@ def generate_summary(conversations: list[dict]) -> str:
         history_text += f"{role_label}：{conv['content']}\n\n"
 
     prompt = f"请用简洁的语言概括以下对话的主要内容和结论，控制在200字以内：\n\n{history_text}"
-    return chat_completion([{"role": "user", "content": prompt}])
+    _, summary = chat_completion([{"role": "user", "content": prompt}])
+    return summary
