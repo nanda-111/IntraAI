@@ -109,7 +109,8 @@ def ask_with_rag(
     # 最后追加当前问题
     messages.append({"role": "user", "content": question})
 
-    return chat_completion(messages)
+    _, answer = chat_completion(messages)
+    return answer
 
 
 def ask_with_rag_stream(

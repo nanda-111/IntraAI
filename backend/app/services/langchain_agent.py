@@ -72,4 +72,4 @@ async def run_agent_stream(
         if event_type == "messages" and event_data:
             chunk = event_data[0]
             if hasattr(chunk, "content") and chunk.content:
-                yield chunk.content
+                yield {"type": "answer", "content": chunk.content}
