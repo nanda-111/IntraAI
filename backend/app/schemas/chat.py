@@ -10,6 +10,7 @@ class ChatRequest(BaseModel):
     kb_id: int | None = None
     session_id: int | None = None
     mode: Literal["normal", "agent"] = "normal"
+    stream: bool = False
 
 
 class ChatResponse(BaseModel):

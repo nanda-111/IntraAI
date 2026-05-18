@@ -8,6 +8,8 @@
 支持多轮对话上下文维护（通过 session_id）。
 """
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import asc
@@ -159,9 +161,9 @@ def chat(
         if history:
             messages.extend(history)
         messages.append({"role": "user", "content": data.question})
-        answer = chat_completion(messages)
+        _, answer = chat_completion(messages)
     else:
-        answer = chat_completion([{"role": "user", "content": data.question}])
+        _, answer = chat_completion([{"role": "user", "content": data.question}])
 
     _save_conversation(data, answer, current_user, db)
     _post_chat(session, data, answer, db)
@@ -201,8 +203,8 @@ def chat_stream(
                     while True:
                         try:
                             chunk = loop.run_until_complete(agen.__anext__())
-                            full_answer += chunk
-                            yield f"data: {chunk}\n\n"
+                            full_answer += chunk["content"]
+                            yield f"data: {json.dumps(chunk)}\n\n"
                         except StopAsyncIteration:
                             break
                 finally:
@@ -213,8 +215,8 @@ def chat_stream(
                 for chunk in ask_with_rag_stream(
                     data.question, data.kb_id, history=history, summary=summary
                 ):
-                    full_answer += chunk
-                    yield f"data: {chunk}\n\n"
+                    full_answer += chunk["content"]
+                    yield f"data: {json.dumps(chunk)}\n\n"
             elif history or summary:
                 from app.services.llm import chat_completion_stream as llm_stream
 
@@ -227,14 +229,14 @@ def chat_stream(
                     messages.extend(history)
                 messages.append({"role": "user", "content": data.question})
                 for chunk in llm_stream(messages):
-                    full_answer += chunk
-                    yield f"data: {chunk}\n\n"
+                    full_answer += chunk["content"]
+                    yield f"data: {json.dumps(chunk)}\n\n"
             else:
                 from app.services.llm import chat_completion_stream as llm_stream
 
                 for chunk in llm_stream([{"role": "user", "content": data.question}]):
-                    full_answer += chunk
-                    yield f"data: {chunk}\n\n"
+                    full_answer += chunk["content"]
+                    yield f"data: {json.dumps(chunk)}\n\n"
 
             yield "data: [DONE]\n\n"
 
