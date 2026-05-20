@@ -4,22 +4,23 @@
   采用经典的「顶部导航 + 左侧菜单 + 右侧内容」三段式布局
 -->
 <template>
-  <a-layout style="height: 100vh">
-    <!-- ==================== 顶部导航栏 ==================== -->
-    <a-layout-header class="header">
-      <!-- 应用 Logo -->
-      <div class="logo">IntraAI</div>
-      <!-- 水平主导航菜单，默认选中"管理"项 -->
-      <a-menu theme="dark" mode="horizontal" :selected-keys="['admin']">
-        <a-menu-item key="chat" @click="$router.push('/')">对话</a-menu-item>
-        <a-menu-item key="knowledge" @click="$router.push('/knowledge')">知识库</a-menu-item>
-        <a-menu-item key="admin">管理</a-menu-item>
-      </a-menu>
-      <!-- 退出登录按钮 -->
-      <a-button type="text" style="color: white" @click="handleLogout">退出</a-button>
-    </a-layout-header>
+  <div class="app-layout">
+    <!-- 深色侧边栏 -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-logo">IntraAI</div>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="nav-links">
+          <router-link to="/" class="nav-link">对话</router-link>
+          <router-link to="/knowledge" class="nav-link">知识库</router-link>
+          <router-link to="/admin" class="nav-link active">管理</router-link>
+        </div>
+        <button class="logout-btn" @click="handleLogout">退出登录</button>
+      </div>
+    </aside>
 
-    <!-- ==================== 主体区域：侧边栏 + 内容区 ==================== -->
+    <main class="main-content-admin">
     <a-layout>
       <!--
         a-layout-sider：左侧菜单栏
@@ -126,7 +127,8 @@
         </template>
       </a-layout-content>
     </a-layout>
-  </a-layout>
+    </main>
+  </div>
 </template>
 
 <script setup>
@@ -357,16 +359,78 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 顶部导航栏：Logo、菜单和退出按钮水平排列 */
-.header {
+.app-layout {
   display: flex;
-  align-items: center;
+  height: 100vh;
 }
-/* Logo 文字样式 */
-.logo {
-  color: white;
-  font-size: 18px;
-  font-weight: bold;
-  margin-right: 24px;
+
+.sidebar {
+  width: 260px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar-top {
+  flex: 1;
+  padding: 16px;
+}
+
+.sidebar-logo {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  padding: 4px 0;
+}
+
+.sidebar-bottom {
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.nav-link {
+  color: #aaa;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.logout-btn {
+  width: 100%;
+  padding: 8px;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #aaa;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.logout-btn:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.main-content-admin {
+  flex: 1;
+  display: flex;
+  background: #f7f7f8;
+  overflow: hidden;
 }
 </style>

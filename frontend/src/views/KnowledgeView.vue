@@ -4,37 +4,25 @@
   - 主内容区：知识库列表表格 + 新建/删除功能
 -->
 <template>
-  <!--
-    a-layout 布局结构：
-    Ant Design Vue 的布局容器，由 Header（头部）和 Content（内容区）组成。
-    Header 承载顶部导航栏，Content 承载页面主要内容。
-  -->
-  <a-layout>
-    <!-- 顶部导航栏 -->
-    <a-layout-header class="header">
-      <!-- Logo 标识 -->
-      <div class="logo">IntraAI</div>
-      <!--
-        a-menu 导航菜单：
-        - theme="dark"：使用暗色主题（与深色 Header 背景配合）
-        - mode="horizontal"：水平排列菜单项
-        - selected-keys：控制当前选中的菜单项，此处固定选中 "knowledge"
-      -->
-      <a-menu theme="dark" mode="horizontal" :selected-keys="['knowledge']">
-        <a-menu-item key="chat" @click="$router.push('/')">对话</a-menu-item>
-        <a-menu-item key="knowledge">知识库</a-menu-item>
-        <!--
-          v-if 条件渲染：仅当当前用户是管理员时才显示"管理"菜单项
-          authStore.user?.is_admin 使用可选链，防止 user 为 null 时报错
-        -->
-        <a-menu-item key="admin" v-if="authStore.user?.is_admin" @click="$router.push('/admin')">管理</a-menu-item>
-      </a-menu>
-      <!-- 退出登录按钮，type="text" 使其无边框，通过 style 设置白色文字 -->
-      <a-button type="text" style="color: white" @click="handleLogout">退出</a-button>
-    </a-layout-header>
+  <div class="app-layout">
+    <!-- 深色侧边栏 -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-logo">IntraAI</div>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="nav-links">
+          <router-link to="/" class="nav-link">对话</router-link>
+          <router-link to="/knowledge" class="nav-link active">知识库</router-link>
+          <router-link v-if="authStore.user?.is_admin" to="/admin" class="nav-link">管理</router-link>
+        </div>
+        <button class="logout-btn" @click="handleLogout">退出登录</button>
+      </div>
+    </aside>
 
     <!-- 主内容区 -->
-    <a-layout-content style="padding: 24px">
+    <main class="main-content">
+      <div class="content-container">
       <a-card title="知识库管理">
         <!--
           #extra 插槽：卡片右上角的额外操作区域
@@ -112,8 +100,9 @@
           </a-form-item>
         </a-form>
       </a-modal>
-    </a-layout-content>
-  </a-layout>
+      </div>
+    </main>
+  </div>
 </template>
 
 <script setup>
@@ -242,16 +231,83 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* 顶部导航栏样式：flex 布局实现 Logo、菜单、退出按钮水平排列 */
-.header {
+.app-layout {
   display: flex;
-  align-items: center;
+  height: 100vh;
 }
-/* Logo 样式：白色粗体大字 */
-.logo {
-  color: white;
-  font-size: 18px;
-  font-weight: bold;
-  margin-right: 24px;
+
+.sidebar {
+  width: 260px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar-top {
+  flex: 1;
+  padding: 16px;
+}
+
+.sidebar-logo {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  padding: 4px 0;
+}
+
+.sidebar-bottom {
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.nav-link {
+  color: #aaa;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.logout-btn {
+  width: 100%;
+  padding: 8px;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #aaa;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.logout-btn:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.main-content {
+  flex: 1;
+  background: #f7f7f8;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.content-container {
+  max-width: 960px;
+  margin: 0 auto;
 }
 </style>
