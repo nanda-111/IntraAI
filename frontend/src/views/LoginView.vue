@@ -341,54 +341,35 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-/**
- * <style scoped> — 作用域样式
- *
- * 【scoped 的作用】
- * 添加 scoped 属性后，Vue 编译器会为当前组件的所有样式规则添加一个唯一的属性选择器，
- * 确保这些样式只影响当前组件，不会泄漏到其他组件。
- *
- * 编译前：
- *   .login-container { display: flex; }
- *
- * 编译后（Vue 自动添加 data 属性）：
- *   .login-container[data-v-7a8b9c] { display: flex; }
- *   对应的 HTML 也会有这个属性：<div class="login-container" data-v-7a8b9c>
- *
- * 【为什么需要 scoped？】
- * - 多个组件可能有同名的 CSS 类（如 .container、.header）
- * - 不加 scoped，样式会全局生效，可能导致样式冲突
- * - 加了 scoped，每个组件的样式互相隔离，就像 CSS Modules 一样
- *
- * 【注意事项】
- * - scoped 样式无法影响子组件的深层元素
- *   如果需要修改子组件（如 ant-design-vue 组件）的样式，可以用 :deep()
- *   示例：:deep(.ant-card-head-title) { color: red; }
- */
-
-/**
- * 登录容器样式
- * 使用 Flexbox 实现全屏垂直水平居中
- *
- * - display: flex：启用 Flexbox 布局
- * - justify-content: center：主轴（水平方向）居中
- * - align-items: center：交叉轴（垂直方向）居中
- * - min-height: 100vh：容器最小高度为视口高度（确保垂直居中效果）
- * - background: #f0f2f5：浅灰色背景，与 Ant Design 的整体风格一致
- */
 .login-container {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: #f0f2f5;
+  background: #1a1a2e;
 }
 
-/**
- * 登录卡片样式
- * 固定宽度 400px，在大多数屏幕尺寸下都有良好的视觉效果
- */
 .login-card {
   width: 400px;
+  border-radius: 12px;
+}
+
+.login-card :deep(.ant-card-head-title) {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.login-card :deep(.ant-btn-primary) {
+  background: #4D6BFE;
+  border-color: #4D6BFE;
+}
+
+.login-card :deep(.ant-btn-primary:hover) {
+  background: #3d5be0;
+  border-color: #3d5be0;
+}
+
+.login-card :deep(a) {
+  color: #4D6BFE;
 }
 </style>
