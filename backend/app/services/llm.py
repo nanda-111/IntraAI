@@ -102,6 +102,8 @@ def chat_completion_stream(messages: list[dict], model: str | None = None):
     )
 
     for chunk in response:
+        if not chunk.choices:
+            continue
         delta = chunk.choices[0].delta
         reasoning = getattr(delta, "reasoning_content", None)
         if reasoning:

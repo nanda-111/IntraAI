@@ -240,9 +240,12 @@ def chat_stream(
 
             yield "data: [DONE]\n\n"
 
-            if full_answer:
-                _save_conversation(data, full_answer, current_user, db)
-                _post_chat(session, data, full_answer, db)
+            try:
+                if full_answer:
+                    _save_conversation(data, full_answer, current_user, db)
+                    _post_chat(session, data, full_answer, db)
+            except Exception:
+                pass
         except Exception:
             yield "data: [ERROR]\n\n"
             raise

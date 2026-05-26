@@ -190,12 +190,16 @@ async function handleStreamSend(q) {
   const msg = messages.value[messages.value.length - 1]
   let reasoningStartTime = null
 
+  const gen = sendChatStream({
+    question: q,
+    kb_id: selectedKb.value,
+    session_id: currentSessionId.value,
+  })
+
   try {
-    for await (const chunk of sendChatStream({
-      question: q,
-      kb_id: selectedKb.value,
-      session_id: currentSessionId.value,
-    })) {
+    while (true) {
+      const { value: chunk, done } = await gen.next()
+      if (done) break
       if (chunk.type === 'reasoning') {
         if (!reasoningStartTime) reasoningStartTime = Date.now()
         msg.reasoning += chunk.content
@@ -212,7 +216,8 @@ async function handleStreamSend(q) {
   } finally {
     msg.streaming = false
     loading.value = false
-    fetchSessions()
+    try { await gen.return() } catch {}
+    try { await fetchSessions() } catch {}
   }
 }
 

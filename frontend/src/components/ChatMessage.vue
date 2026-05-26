@@ -16,7 +16,7 @@
           <div class="thinking-header" @click="toggleThinking">
             <span class="thinking-arrow">{{ showThinking ? '▾' : '▸' }}</span>
             <span class="thinking-label">
-              已思考 {{ message.reasoning_time || 0 }} 秒
+              已思考 {{ elapsedSeconds }} 秒
             </span>
             <span v-if="message.streaming" class="thinking-spinner"></span>
           </div>
@@ -33,7 +33,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import MarkdownIt from 'markdown-it'
 
 const md = new MarkdownIt()
@@ -43,14 +43,24 @@ const props = defineProps({
 })
 
 const showThinking = ref(false)
+const elapsedSeconds = ref(0)
+let timer = null
 
-// 流式中展开思考面板，结束后 0.5s 自动收起
+// 流式中展开思考面板 + 实时计时，结束后 0.5s 自动收起
 watch(
   () => props.message.streaming,
   (streaming, oldStreaming) => {
     if (streaming) {
       showThinking.value = true
+      elapsedSeconds.value = props.message.reasoning_time || 0
+      clearInterval(timer)
+      timer = setInterval(() => {
+        elapsedSeconds.value++
+      }, 1000)
     } else if (oldStreaming === true) {
+      clearInterval(timer)
+      timer = null
+      elapsedSeconds.value = props.message.reasoning_time || 0
       setTimeout(() => {
         showThinking.value = false
       }, 500)
@@ -58,6 +68,8 @@ watch(
   },
   { immediate: true }
 )
+
+onUnmounted(() => clearInterval(timer))
 
 function toggleThinking() {
   showThinking.value = !showThinking.value
