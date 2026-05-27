@@ -57,6 +57,16 @@ class TestChatCompletion:
         call_args = mock_client.chat.completions.create.call_args
         assert call_args[1]["model"] == "custom-model"
 
+    @patch("app.services.llm.client")
+    def test_chat_completion_api_error(self, mock_client):
+        """测试 API 调用异常"""
+        from app.services.llm import chat_completion
+
+        mock_client.chat.completions.create.side_effect = Exception("API 错误")
+
+        with pytest.raises(Exception, match="API 错误"):
+            chat_completion([{"role": "user", "content": "测试"}])
+
 
 class TestChatCompletionStream:
     """chat_completion_stream 函数测试"""
@@ -116,6 +126,16 @@ class TestChatCompletionStream:
         assert call_args[1]["model"] == "custom-model"
         assert call_args[1]["stream"] is True
 
+    @patch("app.services.llm.client")
+    def test_stream_api_error(self, mock_client):
+        """测试流式调用异常"""
+        from app.services.llm import chat_completion_stream
+
+        mock_client.chat.completions.create.side_effect = Exception("API 错误")
+
+        with pytest.raises(Exception, match="API 错误"):
+            list(chat_completion_stream([{"role": "user", "content": "测试"}]))
+
 
 class TestGenerateTitle:
     """generate_title 函数测试"""
@@ -167,6 +187,16 @@ class TestGenerateTitle:
 
         assert len(title) <= 50
 
+    @patch("app.services.llm.chat_completion")
+    def test_generate_title_api_error(self, mock_chat):
+        """测试标题生成 API 异常"""
+        from app.services.llm import generate_title
+
+        mock_chat.side_effect = Exception("API 错误")
+
+        with pytest.raises(Exception, match="API 错误"):
+            generate_title("问题", "回答")
+
 
 class TestGenerateSummary:
     """generate_summary 函数测试"""
@@ -205,3 +235,13 @@ class TestGenerateSummary:
         prompt = call_args[0][0][0]["content"]
         assert "你好" in prompt
         assert "你好，有什么可以帮您？" in prompt
+
+    @patch("app.services.llm.chat_completion")
+    def test_generate_summary_api_error(self, mock_chat):
+        """测试摘要生成 API 异常"""
+        from app.services.llm import generate_summary
+
+        mock_chat.side_effect = Exception("API 错误")
+
+        with pytest.raises(Exception, match="API 错误"):
+            generate_summary([{"role": "user", "content": "问题"}])
