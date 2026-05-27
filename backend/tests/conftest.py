@@ -125,3 +125,63 @@ def user_headers(user_token):
 def admin_headers(admin_token):
     """带管理员认证的请求头"""
     return {"Authorization": f"Bearer {admin_token}"}
+
+
+# ---- 通用 Mock Fixtures ----
+
+@pytest.fixture
+def mock_llm(monkeypatch):
+    """Mock LLM 调用，返回固定响应"""
+    from unittest.mock import MagicMock
+
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = "测试回答"
+    mock_response.choices[0].message.reasoning_content = ""
+    mock_client.chat.completions.create.return_value = mock_response
+
+    def _mock_chat_completion(messages, model=None):
+        return "", "测试回答"
+
+    def _mock_chat_completion_stream(messages, model=None):
+        yield {"type": "answer", "content": "测试"}
+        yield {"type": "answer", "content": "回答"}
+
+    return mock_client, _mock_chat_completion, _mock_chat_completion_stream
+
+
+@pytest.fixture
+def mock_embeddings(monkeypatch):
+    """Mock 向量化服务"""
+    from unittest.mock import patch
+
+    def _get_embeddings(texts):
+        return [[0.1] * 768 for _ in texts]
+
+    with patch("app.services.embedding.get_embeddings", side_effect=_get_embeddings):
+        yield _get_embeddings
+
+
+@pytest.fixture
+def mock_vector_store(monkeypatch):
+    """Mock 向量存储服务"""
+    from unittest.mock import patch
+
+    mock_results = [
+        ("测试文档内容", {"source": "test.pdf"}),
+    ]
+
+    with patch("app.services.vector_store.search", return_value=mock_results):
+        with patch("app.services.vector_store.add_documents", return_value=2):
+            yield mock_results
+
+
+@pytest.fixture
+def mock_document_processor(monkeypatch):
+    """Mock 文档处理服务"""
+    from unittest.mock import patch
+
+    with patch("app.services.document_processor.extract_text", return_value="测试文本内容"):
+        with patch("app.services.document_processor.split_text", return_value=["切片1", "切片2"]):
+            yield
