@@ -37,6 +37,14 @@ from app.services.langchain_agent import (  # noqa: E402
 import app.services.langchain_agent as _agent_module  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def reset_agent_cache():
+    """每个测试前重置 Agent 缓存"""
+    _agent_module._agent_cache = None
+    yield
+    _agent_module._agent_cache = None
+
+
 class TestConvertHistory:
     """_convert_history 函数测试"""
 
@@ -116,66 +124,50 @@ class TestGetAgent:
     @patch("app.services.langchain_agent.get_mimo_llm")
     def test_get_agent_creates_agent(self, mock_llm, mock_create):
         """测试首次调用会创建 Agent"""
-        _agent_module._agent_cache = None
-
         mock_agent = MagicMock()
         mock_create.return_value = mock_agent
 
-        result = _get_agent()
+        result = _agent_module._get_agent()
 
         assert result is mock_agent
         mock_llm.assert_called_once_with(streaming=True)
         mock_create.assert_called_once()
 
-        _agent_module._agent_cache = None
-
     @patch("app.services.langchain_agent.create_agent")
     @patch("app.services.langchain_agent.get_mimo_llm")
     def test_get_agent_uses_cache(self, mock_llm, mock_create):
         """测试 Agent 缓存机制 — 只创建一次"""
-        _agent_module._agent_cache = None
-
         mock_agent = MagicMock()
         mock_create.return_value = mock_agent
 
-        agent1 = _get_agent()
-        agent2 = _get_agent()
+        agent1 = _agent_module._get_agent()
+        agent2 = _agent_module._get_agent()
 
         assert agent1 is agent2
         mock_create.assert_called_once()
-
-        _agent_module._agent_cache = None
 
     @patch("app.services.langchain_agent.create_agent")
     @patch("app.services.langchain_agent.get_mimo_llm")
     def test_get_agent_passes_system_prompt(self, mock_llm, mock_create):
         """测试创建 Agent 时传入 system_prompt"""
-        _agent_module._agent_cache = None
-
         mock_create.return_value = MagicMock()
 
-        _get_agent()
+        _agent_module._get_agent()
 
         call_kwargs = mock_create.call_args.kwargs
         assert call_kwargs["system_prompt"] == AGENT_SYSTEM_PROMPT
-
-        _agent_module._agent_cache = None
 
     @patch("app.services.langchain_agent.create_agent")
     @patch("app.services.langchain_agent.get_mimo_llm")
     def test_get_agent_passes_tools(self, mock_llm, mock_create):
         """测试创建 Agent 时传入 tools"""
-        _agent_module._agent_cache = None
-
         mock_create.return_value = MagicMock()
 
-        _get_agent()
+        _agent_module._get_agent()
 
         call_kwargs = mock_create.call_args.kwargs
         tools = call_kwargs["tools"]
         assert len(tools) == 3
-
-        _agent_module._agent_cache = None
 
 
 class TestRunAgent:
