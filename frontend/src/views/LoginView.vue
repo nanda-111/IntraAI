@@ -18,7 +18,10 @@
       - :title 动态绑定标题，根据 isLogin 切换"登录"或"注册"
       - isLogin ? '登录 IntraAI' : '注册 IntraAI' 是三元表达式
     -->
-    <a-card class="login-card" :title="isLogin ? '登录 IntraAI' : '注册 IntraAI'">
+    <a-card
+      class="login-card"
+      :title="isLogin ? '登录 IntraAI' : '注册 IntraAI'"
+    >
       <!--
         a-form 表单组件
 
@@ -38,7 +41,11 @@
         表单布局方式，"vertical" 表示标签在输入框上方（垂直排列）
         其他选项：horizontal（标签在左侧，水平排列）、inline（所有项在同一行）
       -->
-      <a-form :model="form" @finish="handleSubmit" layout="vertical">
+      <a-form
+        :model="form"
+        layout="vertical"
+        @finish="handleSubmit"
+      >
         <!--
           用户名输入项
 
@@ -75,7 +82,10 @@
             - 代码修改 form.username → 输入框自动更新
             placeholder: 输入框为空时的灰色提示文字
           -->
-          <a-input v-model:value="form.username" placeholder="请输入用户名" />
+          <a-input
+            v-model:value="form.username"
+            placeholder="请输入用户名"
+          />
         </a-form-item>
 
         <!--
@@ -94,7 +104,10 @@
           name="email"
           :rules="[{ required: true, message: '请输入邮箱' }]"
         >
-          <a-input v-model:value="form.email" placeholder="请输入邮箱" />
+          <a-input
+            v-model:value="form.email"
+            placeholder="请输入邮箱"
+          />
         </a-form-item>
 
         <!--
@@ -106,7 +119,10 @@
           name="password"
           :rules="[{ required: true, message: '请输入密码' }]"
         >
-          <a-input-password v-model:value="form.password" placeholder="请输入密码" />
+          <a-input-password
+            v-model:value="form.password"
+            placeholder="请输入密码"
+          />
         </a-form-item>
 
         <!--
@@ -125,7 +141,12 @@
           block 是 Ant Design Vue 的属性，让按钮宽度占满父容器（100% width）。
         -->
         <a-form-item>
-          <a-button type="primary" html-type="submit" :loading="loading" block>
+          <a-button
+            type="primary"
+            html-type="submit"
+            :loading="loading"
+            block
+          >
             {{ isLogin ? '登录' : '注册' }}
           </a-button>
         </a-form-item>
@@ -145,7 +166,10 @@
           - isLogin 当前为 false → 点击后变为 true（显示登录表单）
           因为 isLogin 是 ref 包装的响应式变量，Vue 会自动检测到变化并更新 DOM。
         -->
-        <a @click="isLogin = !isLogin" style="text-align: center; display: block; cursor: pointer">
+        <a
+          style="text-align: center; display: block; cursor: pointer"
+          @click="isLogin = !isLogin"
+        >
           {{ isLogin ? '没有账号？去注册' : '已有账号？去登录' }}
         </a>
       </a-form>

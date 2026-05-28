@@ -8,107 +8,167 @@
     <!-- 深色侧边栏 -->
     <aside class="sidebar">
       <div class="sidebar-top">
-        <div class="sidebar-logo">IntraAI</div>
+        <div class="sidebar-logo">
+          IntraAI
+        </div>
       </div>
       <div class="sidebar-bottom">
         <div class="nav-links">
-          <router-link to="/" class="nav-link">对话</router-link>
-          <router-link to="/knowledge" class="nav-link">知识库</router-link>
-          <router-link to="/admin" class="nav-link active">管理</router-link>
+          <router-link
+            to="/"
+            class="nav-link"
+          >
+            对话
+          </router-link>
+          <router-link
+            to="/knowledge"
+            class="nav-link"
+          >
+            知识库
+          </router-link>
+          <router-link
+            to="/admin"
+            class="nav-link active"
+          >
+            管理
+          </router-link>
         </div>
-        <button class="logout-btn" @click="handleLogout">退出登录</button>
+        <button
+          class="logout-btn"
+          @click="handleLogout"
+        >
+          退出登录
+        </button>
       </div>
     </aside>
 
     <main class="main-content-admin">
-    <a-layout>
-      <!--
+      <a-layout>
+        <!--
         a-layout-sider：左侧菜单栏
         使用 light 主题，宽度固定 200px
         v-model:selected-keys 双向绑定当前选中的 Tab
         用户点击菜单项时，activeTab 自动更新，触发 watch 加载对应数据
       -->
-      <a-layout-sider width="200" theme="light">
-        <a-menu mode="inline" v-model:selected-keys="activeTab" style="height: 100%">
-          <a-menu-item key="stats">数据概览</a-menu-item>
-          <a-menu-item key="users">用户管理</a-menu-item>
-          <a-menu-item key="kbs">知识库管理</a-menu-item>
-          <a-menu-item key="logs">操作日志</a-menu-item>
-        </a-menu>
-      </a-layout-sider>
+        <a-layout-sider
+          width="200"
+          theme="light"
+        >
+          <a-menu
+            v-model:selected-keys="activeTab"
+            mode="inline"
+            style="height: 100%"
+          >
+            <a-menu-item key="stats">
+              数据概览
+            </a-menu-item>
+            <a-menu-item key="users">
+              用户管理
+            </a-menu-item>
+            <a-menu-item key="kbs">
+              知识库管理
+            </a-menu-item>
+            <a-menu-item key="logs">
+              操作日志
+            </a-menu-item>
+          </a-menu>
+        </a-layout-sider>
 
-      <!-- 右侧内容区：根据 activeTab 的值显示对应的面板 -->
-      <a-layout-content style="padding: 24px">
-        <!-- ==================== 数据概览面板 ==================== -->
-        <template v-if="activeTab[0] === 'stats'">
-          <!-- 四列卡片，每列展示一项统计数据 -->
-          <a-row :gutter="16">
-            <a-col :span="6" v-for="item in statCards" :key="item.title">
-              <a-card>
-                <!-- a-statistic：Ant Design Vue 的数值展示组件 -->
-                <a-statistic :title="item.title" :value="item.value" />
-              </a-card>
-            </a-col>
-          </a-row>
-        </template>
+        <!-- 右侧内容区：根据 activeTab 的值显示对应的面板 -->
+        <a-layout-content style="padding: 24px">
+          <!-- ==================== 数据概览面板 ==================== -->
+          <template v-if="activeTab[0] === 'stats'">
+            <!-- 四列卡片，每列展示一项统计数据 -->
+            <a-row :gutter="16">
+              <a-col
+                v-for="item in statCards"
+                :key="item.title"
+                :span="6"
+              >
+                <a-card>
+                  <!-- a-statistic：Ant Design Vue 的数值展示组件 -->
+                  <a-statistic
+                    :title="item.title"
+                    :value="item.value"
+                  />
+                </a-card>
+              </a-col>
+            </a-row>
+          </template>
 
-        <!-- ==================== 用户管理面板 ==================== -->
-        <template v-if="activeTab[0] === 'users'">
-          <a-card title="用户管理">
-            <!--
+          <!-- ==================== 用户管理面板 ==================== -->
+          <template v-if="activeTab[0] === 'users'">
+            <a-card title="用户管理">
+              <!--
               a-table 用户列表表格
               :loading 绑定加载状态，请求期间显示加载动画
               row-key="id" 指定每行的唯一标识字段
             -->
-            <a-table :data-source="users" :columns="userColumns" row-key="id" :loading="loadingUsers">
-              <template #bodyCell="{ column, record }">
-                <!-- 状态列：使用 a-tag 显示用户是否活跃 -->
-                <template v-if="column.key === 'status'">
-                  <!--
+              <a-table
+                :data-source="users"
+                :columns="userColumns"
+                row-key="id"
+                :loading="loadingUsers"
+              >
+                <template #bodyCell="{ column, record }">
+                  <!-- 状态列：使用 a-tag 显示用户是否活跃 -->
+                  <template v-if="column.key === 'status'">
+                    <!--
                     a-tag 状态标签
                     通过 :color 动态绑定颜色：
                     - 活跃用户显示绿色（green）
                     - 禁用用户显示红色（red）
                   -->
-                  <a-tag :color="record.is_active ? 'green' : 'red'">
-                    {{ record.is_active ? '正常' : '禁用' }}
-                  </a-tag>
+                    <a-tag :color="record.is_active ? 'green' : 'red'">
+                      {{ record.is_active ? '正常' : '禁用' }}
+                    </a-tag>
+                  </template>
+                  <!-- 角色列：区分管理员和普通用户 -->
+                  <template v-if="column.key === 'admin'">
+                    <!-- 管理员标签为蓝色，普通用户为默认灰色 -->
+                    <a-tag :color="record.is_admin ? 'blue' : 'default'">
+                      {{ record.is_admin ? '管理员' : '用户' }}
+                    </a-tag>
+                  </template>
+                  <!-- 操作列：提供启用/禁用和设置管理员两个操作按钮 -->
+                  <template v-if="column.key === 'action'">
+                    <a-space>
+                      <a-button
+                        size="small"
+                        @click="handleToggleUser(record)"
+                      >
+                        {{ record.is_active ? '禁用' : '启用' }}
+                      </a-button>
+                      <a-button
+                        size="small"
+                        @click="handleToggleAdmin(record)"
+                      >
+                        {{ record.is_admin ? '取消管理员' : '设为管理员' }}
+                      </a-button>
+                    </a-space>
+                  </template>
                 </template>
-                <!-- 角色列：区分管理员和普通用户 -->
-                <template v-if="column.key === 'admin'">
-                  <!-- 管理员标签为蓝色，普通用户为默认灰色 -->
-                  <a-tag :color="record.is_admin ? 'blue' : 'default'">
-                    {{ record.is_admin ? '管理员' : '用户' }}
-                  </a-tag>
-                </template>
-                <!-- 操作列：提供启用/禁用和设置管理员两个操作按钮 -->
-                <template v-if="column.key === 'action'">
-                  <a-space>
-                    <a-button size="small" @click="handleToggleUser(record)">
-                      {{ record.is_active ? '禁用' : '启用' }}
-                    </a-button>
-                    <a-button size="small" @click="handleToggleAdmin(record)">
-                      {{ record.is_admin ? '取消管理员' : '设为管理员' }}
-                    </a-button>
-                  </a-space>
-                </template>
-              </template>
-            </a-table>
-          </a-card>
-        </template>
+              </a-table>
+            </a-card>
+          </template>
 
-        <!-- ==================== 知识库管理面板 ==================== -->
-        <template v-if="activeTab[0] === 'kbs'">
-          <a-card title="知识库管理">
-            <!-- 知识库列表，展示所有用户的全部知识库 -->
-            <a-table :data-source="adminKbs" :columns="kbColumns" row-key="id" :loading="loadingKbs" />
-          </a-card>
-        </template>
+          <!-- ==================== 知识库管理面板 ==================== -->
+          <template v-if="activeTab[0] === 'kbs'">
+            <a-card title="知识库管理">
+              <!-- 知识库列表，展示所有用户的全部知识库 -->
+              <a-table
+                :data-source="adminKbs"
+                :columns="kbColumns"
+                row-key="id"
+                :loading="loadingKbs"
+              />
+            </a-card>
+          </template>
 
-        <!-- ==================== 操作日志面板 ==================== -->
-        <template v-if="activeTab[0] === 'logs'">
-          <a-card title="操作日志">
-            <!--
+          <!-- ==================== 操作日志面板 ==================== -->
+          <template v-if="activeTab[0] === 'logs'">
+            <a-card title="操作日志">
+              <!--
               a-table 操作日志表格
               配置分页组件：
               - current: 当前页码，双向绑定 logPage
@@ -116,17 +176,17 @@
               - pageSize: 每页显示 20 条
               - onChange: 用户切换页码时触发 handleLogPageChange，加载对应页的数据
             -->
-            <a-table
-              :data-source="logs"
-              :columns="logColumns"
-              row-key="id"
-              :loading="loadingLogs"
-              :pagination="{ current: logPage, total: logTotal, pageSize: 20, onChange: handleLogPageChange }"
-            />
-          </a-card>
-        </template>
-      </a-layout-content>
-    </a-layout>
+              <a-table
+                :data-source="logs"
+                :columns="logColumns"
+                row-key="id"
+                :loading="loadingLogs"
+                :pagination="{ current: logPage, total: logTotal, pageSize: 20, onChange: handleLogPageChange }"
+              />
+            </a-card>
+          </template>
+        </a-layout-content>
+      </a-layout>
     </main>
   </div>
 </template>

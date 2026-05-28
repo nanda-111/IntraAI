@@ -8,31 +8,59 @@
     <!-- 深色侧边栏 -->
     <aside class="sidebar">
       <div class="sidebar-top">
-        <div class="sidebar-logo">IntraAI</div>
+        <div class="sidebar-logo">
+          IntraAI
+        </div>
       </div>
       <div class="sidebar-bottom">
         <div class="nav-links">
-          <router-link to="/" class="nav-link">对话</router-link>
-          <router-link to="/knowledge" class="nav-link active">知识库</router-link>
-          <router-link v-if="authStore.user?.is_admin" to="/admin" class="nav-link">管理</router-link>
+          <router-link
+            to="/"
+            class="nav-link"
+          >
+            对话
+          </router-link>
+          <router-link
+            to="/knowledge"
+            class="nav-link active"
+          >
+            知识库
+          </router-link>
+          <router-link
+            v-if="authStore.user?.is_admin"
+            to="/admin"
+            class="nav-link"
+          >
+            管理
+          </router-link>
         </div>
-        <button class="logout-btn" @click="handleLogout">退出登录</button>
+        <button
+          class="logout-btn"
+          @click="handleLogout"
+        >
+          退出登录
+        </button>
       </div>
     </aside>
 
     <!-- 主内容区 -->
     <main class="main-content">
       <div class="content-container">
-      <a-card title="知识库管理">
-        <!--
+        <a-card title="知识库管理">
+          <!--
           #extra 插槽：卡片右上角的额外操作区域
           放置"新建知识库"按钮，点击后打开弹窗
         -->
-        <template #extra>
-          <a-button type="primary" @click="showCreate = true">新建知识库</a-button>
-        </template>
+          <template #extra>
+            <a-button
+              type="primary"
+              @click="showCreate = true"
+            >
+              新建知识库
+            </a-button>
+          </template>
 
-        <!--
+          <!--
           a-table 知识库列表表格：
           - data-source：表格数据源，绑定 kbs 响应式数组
           - columns：列配置数组，定义每列的标题、数据字段、key 等
@@ -53,10 +81,15 @@
           - record：当前行的数据对象
           通过判断 column.key === 'action' 来为"操作"列渲染删除按钮。
         -->
-        <a-table :data-source="kbs" :columns="columns" :loading="loading" row-key="id">
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'action'">
-              <!--
+          <a-table
+            :data-source="kbs"
+            :columns="columns"
+            :loading="loading"
+            row-key="id"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'action'">
+                <!--
                 a-popconfirm 气泡确认框：
                 - title：确认提示文字
                 - @confirm：用户点击"确定"后触发的回调
@@ -64,15 +97,23 @@
                 点击"确认"才执行 handleDelete，点击"取消"则不做任何操作。
                 这是一种防止误删的交互保护。
               -->
-              <a-popconfirm title="确认删除？" @confirm="handleDelete(record.id)">
-                <a-button type="link" danger>删除</a-button>
-              </a-popconfirm>
+                <a-popconfirm
+                  title="确认删除？"
+                  @confirm="handleDelete(record.id)"
+                >
+                  <a-button
+                    type="link"
+                    danger
+                  >
+                    删除
+                  </a-button>
+                </a-popconfirm>
+              </template>
             </template>
-          </template>
-        </a-table>
-      </a-card>
+          </a-table>
+        </a-card>
 
-      <!--
+        <!--
         a-modal 新建知识库弹窗：
         - v-model:open：双向绑定弹窗的显示/隐藏状态
           这是 Vue 3 的 v-model 语法糖：
@@ -82,24 +123,31 @@
         - title：弹窗标题
         - @ok：点击确定按钮的回调
       -->
-      <a-modal v-model:open="showCreate" title="新建知识库" @ok="handleCreate">
-        <!-- a-form 表单，layout="vertical" 使用垂直布局（标签在上，输入框在下） -->
-        <a-form layout="vertical">
-          <!--
+        <a-modal
+          v-model:open="showCreate"
+          title="新建知识库"
+          @ok="handleCreate"
+        >
+          <!-- a-form 表单，layout="vertical" 使用垂直布局（标签在上，输入框在下） -->
+          <a-form layout="vertical">
+            <!--
             a-form-item 表单项：
             - label：标签文字
             - required：是否必填（显示红色星号标记）
           -->
-          <a-form-item label="名称" required>
-            <!-- a-input 文本输入框，v-model:value 双向绑定 newKb.name -->
-            <a-input v-model:value="newKb.name" />
-          </a-form-item>
-          <a-form-item label="描述">
-            <!-- a-textarea 多行文本输入框，用于输入知识库描述 -->
-            <a-textarea v-model:value="newKb.description" />
-          </a-form-item>
-        </a-form>
-      </a-modal>
+            <a-form-item
+              label="名称"
+              required
+            >
+              <!-- a-input 文本输入框，v-model:value 双向绑定 newKb.name -->
+              <a-input v-model:value="newKb.name" />
+            </a-form-item>
+            <a-form-item label="描述">
+              <!-- a-textarea 多行文本输入框，用于输入知识库描述 -->
+              <a-textarea v-model:value="newKb.description" />
+            </a-form-item>
+          </a-form>
+        </a-modal>
       </div>
     </main>
   </div>

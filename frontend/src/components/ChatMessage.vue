@@ -1,32 +1,55 @@
 <template>
   <div :class="['message', message.role]">
     <!-- AI 头像（仅 assistant 显示） -->
-    <div v-if="message.role === 'assistant'" class="avatar">AI</div>
+    <div
+      v-if="message.role === 'assistant'"
+      class="avatar"
+    >
+      AI
+    </div>
 
     <div class="message-body">
       <!-- 用户消息：纯文本靠右 -->
-      <div v-if="message.role === 'user'" class="user-content">
+      <div
+        v-if="message.role === 'user'"
+        class="user-content"
+      >
         {{ message.content }}
       </div>
 
       <!-- AI 消息 -->
       <template v-else>
         <!-- 思考过程折叠面板 -->
-        <div v-if="message.reasoning" class="thinking-panel">
-          <div class="thinking-header" @click="toggleThinking">
+        <div
+          v-if="message.reasoning"
+          class="thinking-panel"
+        >
+          <div
+            class="thinking-header"
+            @click="toggleThinking"
+          >
             <span class="thinking-arrow">{{ showThinking ? '▾' : '▸' }}</span>
             <span class="thinking-label">
               已思考 {{ elapsedSeconds }} 秒
             </span>
-            <span v-if="message.streaming" class="thinking-spinner"></span>
+            <span
+              v-if="message.streaming"
+              class="thinking-spinner"
+            />
           </div>
-          <div v-show="showThinking" class="thinking-content">
+          <div
+            v-show="showThinking"
+            class="thinking-content"
+          >
             {{ message.reasoning }}
           </div>
         </div>
 
         <!-- 回答内容：Markdown 渲染 -->
-        <div class="content" v-html="renderedContent"></div>
+        <div
+          class="content"
+          v-html="renderedContent"
+        />
       </template>
     </div>
   </div>

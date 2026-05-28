@@ -3,8 +3,15 @@
     <!-- 深色侧边栏 -->
     <aside class="sidebar">
       <div class="sidebar-top">
-        <div class="sidebar-logo">IntraAI</div>
-        <button class="new-chat-btn" @click="handleNewSession">+ 新建对话</button>
+        <div class="sidebar-logo">
+          IntraAI
+        </div>
+        <button
+          class="new-chat-btn"
+          @click="handleNewSession"
+        >
+          + 新建对话
+        </button>
         <div class="session-list">
           <div
             v-for="s in sessions"
@@ -13,30 +20,71 @@
             @click="handleSelectSession(s.id)"
           >
             <span class="session-title">{{ s.title }}</span>
-            <button class="delete-btn" @click.stop="handleDeleteSession(s.id)">X</button>
+            <button
+              class="delete-btn"
+              @click.stop="handleDeleteSession(s.id)"
+            >
+              X
+            </button>
           </div>
-          <div v-if="sessions.length === 0" class="empty-hint">暂无对话</div>
+          <div
+            v-if="sessions.length === 0"
+            class="empty-hint"
+          >
+            暂无对话
+          </div>
         </div>
       </div>
       <div class="sidebar-bottom">
         <div class="nav-links">
-          <router-link to="/" class="nav-link active">对话</router-link>
-          <router-link to="/knowledge" class="nav-link">知识库</router-link>
-          <router-link v-if="authStore.user?.is_admin" to="/admin" class="nav-link">管理</router-link>
+          <router-link
+            to="/"
+            class="nav-link active"
+          >
+            对话
+          </router-link>
+          <router-link
+            to="/knowledge"
+            class="nav-link"
+          >
+            知识库
+          </router-link>
+          <router-link
+            v-if="authStore.user?.is_admin"
+            to="/admin"
+            class="nav-link"
+          >
+            管理
+          </router-link>
         </div>
-        <button class="logout-btn" @click="handleLogout">退出登录</button>
+        <button
+          class="logout-btn"
+          @click="handleLogout"
+        >
+          退出登录
+        </button>
       </div>
     </aside>
 
     <!-- 主内容区 -->
     <main class="main-content">
       <!-- 消息列表 -->
-      <div class="messages" ref="messagesRef">
-        <div v-if="messages.length === 0" class="empty-chat">
+      <div
+        ref="messagesRef"
+        class="messages"
+      >
+        <div
+          v-if="messages.length === 0"
+          class="empty-chat"
+        >
           <h2>IntraAI 知识助手</h2>
           <p>选择知识库后开始提问，或直接对话</p>
         </div>
-        <ChatMessage v-for="(msg, i) in messages" :key="i" :message="msg" />
+        <ChatMessage
+          v-for="(msg, i) in messages"
+          :key="i"
+          :message="msg"
+        />
       </div>
 
       <!-- 输入区 -->
@@ -60,7 +108,10 @@
           />
           <div class="stream-toggle">
             <span>流式</span>
-            <a-switch v-model:checked="useStream" size="small" />
+            <a-switch
+              v-model:checked="useStream"
+              size="small"
+            />
           </div>
         </div>
         <!-- 输入框 -->
@@ -69,15 +120,15 @@
             v-model:value="question"
             placeholder="输入问题..."
             :auto-size="{ minRows: 1, maxRows: 6 }"
-            @keydown.enter.exact.prevent="handleSend"
             :bordered="false"
+            @keydown.enter.exact.prevent="handleSend"
           />
           <a-button
             type="primary"
             :loading="loading"
             :disabled="!question.trim()"
-            @click="handleSend"
             class="send-btn"
+            @click="handleSend"
           >
             发送
           </a-button>
@@ -197,7 +248,7 @@ async function handleStreamSend(q) {
   })
 
   try {
-    while (true) {
+    for (;;) {
       const { value: chunk, done } = await gen.next()
       if (done) break
       if (chunk.type === 'reasoning') {
@@ -216,8 +267,8 @@ async function handleStreamSend(q) {
   } finally {
     msg.streaming = false
     loading.value = false
-    try { await gen.return() } catch {}
-    try { await fetchSessions() } catch {}
+    try { await gen.return() } catch { /* ignore */ }
+    try { await fetchSessions() } catch { /* ignore */ }
   }
 }
 
