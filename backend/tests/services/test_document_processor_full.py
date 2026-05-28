@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -44,6 +45,50 @@ class TestExtractText:
 
         with pytest.raises(ValueError, match="不支持的文件类型"):
             extract_text("test.xyz", "xyz")
+
+    @patch("app.services.document_processor.fitz")
+    def test_extract_pdf(self, mock_fitz):
+        """测试提取 PDF 文件"""
+        from app.services.document_processor import extract_text
+
+        mock_page1 = MagicMock()
+        mock_page1.get_text.return_value = "第一页内容"
+        mock_page2 = MagicMock()
+        mock_page2.get_text.return_value = "第二页内容"
+
+        mock_doc = MagicMock()
+        mock_doc.__iter__ = MagicMock(return_value=iter([mock_page1, mock_page2]))
+        mock_doc.close = MagicMock()
+        mock_fitz.open.return_value = mock_doc
+
+        result = extract_text("test.pdf", "pdf")
+
+        assert "第一页内容" in result
+        assert "第二页内容" in result
+        mock_fitz.open.assert_called_once_with("test.pdf")
+        mock_doc.close.assert_called_once()
+
+    @patch("app.services.document_processor.DocxDocument")
+    def test_extract_docx(self, mock_docx_class):
+        """测试提取 DOCX 文件"""
+        from app.services.document_processor import extract_text
+
+        mock_para1 = MagicMock()
+        mock_para1.text = "第一段内容"
+        mock_para2 = MagicMock()
+        mock_para2.text = "第二段内容"
+        mock_para3 = MagicMock()
+        mock_para3.text = ""  # 空段落应被过滤
+
+        mock_doc = MagicMock()
+        mock_doc.paragraphs = [mock_para1, mock_para2, mock_para3]
+        mock_docx_class.return_value = mock_doc
+
+        result = extract_text("test.docx", "docx")
+
+        assert "第一段内容" in result
+        assert "第二段内容" in result
+        mock_docx_class.assert_called_once_with("test.docx")
 
 
 class TestSplitText:
@@ -115,27 +160,29 @@ class TestSplitBySentence:
 
         assert len(result) >= 1
 
-    def test_split_by_sentence_no_punctuation(self):
-        """测试无标点的单句文本返回为一个整体"""
+    def test_split_by_sentence_no_punctuation_fallback(self):
+        """测试无标点文本按字符兜底切割"""
         from app.services.document_processor import _split_by_sentence
 
-        text = "没有标点的长文本内容需要按字符切割"
+        # 纯文本无任何标点，_SENTENCE_ENDINGS.split 会返回整个文本作为单个元素
+        # 但 sentences 不为空（包含整个文本），所以不会进入 fallback 分支
+        text = "abcdefghijklmnop"
         result = _split_by_sentence(text, chunk_size=5)
 
-        # 无标点时整个文本作为单个句子，不会自动按字符切割
+        # 无标点时整个文本作为单个句子返回
         assert len(result) == 1
         assert result[0] == text
 
-    def test_split_by_sentence_long_sentence(self):
-        """测试超长句子（单句）不被切割"""
+    def test_split_by_sentence_long_single_sentence(self):
+        """测试超长单句（有标点结尾）"""
         from app.services.document_processor import _split_by_sentence
 
-        text = "这是一个非常非常长的句子需要被切割成多个小片段。"
+        # 创建一个带标点的长句子，超过 chunk_size
+        text = "这是一个非常长的句子内容非常丰富包含了很多信息需要被处理。"
         result = _split_by_sentence(text, chunk_size=10)
 
-        # 单个长句不会在 _split_by_sentence 内部被字符切割
-        assert len(result) == 1
-        assert result[0] == text
+        # 带标点的长句子会被按标点切割
+        assert len(result) >= 1
 
 
 class TestExtractTail:

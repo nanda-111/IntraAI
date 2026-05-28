@@ -111,6 +111,21 @@ class TestUpdateKB:
         )
         assert res.status_code == 404
 
+    def test_update_others_kb_forbidden(self, client, user_headers, admin_headers):
+        """非管理员修改他人知识库应被拒绝"""
+        create_res = client.post(
+            "/api/knowledge-bases/",
+            json={"name": "管理员的", "description": ""},
+            headers=admin_headers,
+        )
+        kb_id = create_res.json()["id"]
+        res = client.put(
+            f"/api/knowledge-bases/{kb_id}",
+            json={"name": "尝试修改"},
+            headers=user_headers,
+        )
+        assert res.status_code == 403
+
 
 class TestDeleteKB:
     def test_delete_own_kb(self, client, user_headers):
