@@ -1,8 +1,7 @@
 """LangChain Agent 模块测试"""
 
-import importlib
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -25,16 +24,11 @@ for mod_name in ["app.services.langchain_tools", "app.services.langchain_agent"]
     if mod_name in sys.modules:
         del sys.modules[mod_name]
 
+import app.services.langchain_agent as _agent_module  # noqa: E402
 from app.services.langchain_agent import (  # noqa: E402
     AGENT_SYSTEM_PROMPT,
-    _agent_cache,
     _convert_history,
-    _get_agent,
-    run_agent,
-    run_agent_stream,
 )
-
-import app.services.langchain_agent as _agent_module  # noqa: E402
 
 
 @pytest.fixture(autouse=True)

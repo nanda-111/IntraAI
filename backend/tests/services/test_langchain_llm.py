@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestConvertDictToMessageWithReasoning:
     """_convert_dict_to_message_with_reasoning 函数测试"""

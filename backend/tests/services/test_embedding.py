@@ -1,8 +1,6 @@
 """向量化服务测试"""
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 
 class TestGetEmbeddings:

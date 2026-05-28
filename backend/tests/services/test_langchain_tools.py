@@ -1,10 +1,7 @@
 """LangChain 工具模块测试"""
 
-import importlib
 import sys
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 # ---- 模块级 Mock：在 langchain_tools 首次导入前拦截 DuckDuckGoSearchRun ----
 # langchain_tools.py 在模块顶层执行 _ddg_search = DuckDuckGoSearchRun()

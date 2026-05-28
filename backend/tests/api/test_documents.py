@@ -3,8 +3,6 @@
 import io
 from unittest.mock import patch
 
-import pytest
-
 
 class TestSearchKb:
     """POST /api/documents/search/{kb_id} 测试"""

@@ -2,8 +2,6 @@
 
 from unittest.mock import patch
 
-import pytest
-
 
 class TestHealthCheck:
     """健康检查接口测试"""
