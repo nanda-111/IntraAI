@@ -169,9 +169,7 @@ class TestAskWithRag:
     @patch("app.services.rag.chat_completion")
     @patch("app.services.rag.search")
     @patch("app.services.rag.get_embeddings")
-    def test_ask_with_rag_with_history_and_summary(
-        self, mock_embeddings, mock_search, mock_chat
-    ):
+    def test_ask_with_rag_with_history_and_summary(self, mock_embeddings, mock_search, mock_chat):
         """测试同时带历史对话和摘要的 RAG 问答"""
         from app.services.rag import ask_with_rag
 
@@ -184,9 +182,7 @@ class TestAskWithRag:
             {"role": "assistant", "content": "历史回答"},
         ]
 
-        answer = ask_with_rag(
-            "新问题", kb_id=1, history=history, summary="对话摘要"
-        )
+        answer = ask_with_rag("新问题", kb_id=1, history=history, summary="对话摘要")
 
         assert answer == "综合回答"
         call_args = mock_chat.call_args[0][0]
@@ -202,9 +198,7 @@ class TestAskWithRag:
     @patch("app.services.rag.chat_completion")
     @patch("app.services.rag.search")
     @patch("app.services.rag.get_embeddings")
-    def test_ask_with_rag_embedding_error(
-        self, mock_embeddings, mock_search, mock_chat
-    ):
+    def test_ask_with_rag_embedding_error(self, mock_embeddings, mock_search, mock_chat):
         """测试 embedding 服务异常"""
         from app.services.rag import ask_with_rag
 
@@ -230,9 +224,7 @@ class TestAskWithRag:
     @patch("app.services.rag.chat_completion")
     @patch("app.services.rag.search")
     @patch("app.services.rag.get_embeddings")
-    def test_ask_with_rag_passes_correct_kb_id(
-        self, mock_embeddings, mock_search, mock_chat
-    ):
+    def test_ask_with_rag_passes_correct_kb_id(self, mock_embeddings, mock_search, mock_chat):
         """测试 kb_id 正确传递给 search"""
         from app.services.rag import ask_with_rag
 
@@ -280,9 +272,11 @@ class TestAskWithRagStream:
 
         mock_embeddings.return_value = [[0.1] * 768]
         mock_search.return_value = [("文档内容", {"source": "test.pdf"})]
-        mock_stream.return_value = iter([
-            {"type": "answer", "content": "回答"},
-        ])
+        mock_stream.return_value = iter(
+            [
+                {"type": "answer", "content": "回答"},
+            ]
+        )
 
         chunks = list(ask_with_rag_stream("问题", kb_id=1))
 
@@ -298,11 +292,13 @@ class TestAskWithRagStream:
 
         mock_embeddings.return_value = [[0.1] * 768]
         mock_search.return_value = [("文档内容", {"source": "test.pdf"})]
-        mock_stream.return_value = iter([
-            {"type": "reasoning", "content": "思考中"},
-            {"type": "answer", "content": "你"},
-            {"type": "answer", "content": "好"},
-        ])
+        mock_stream.return_value = iter(
+            [
+                {"type": "reasoning", "content": "思考中"},
+                {"type": "answer", "content": "你"},
+                {"type": "answer", "content": "好"},
+            ]
+        )
 
         chunks = list(ask_with_rag_stream("问题", kb_id=1))
 
@@ -320,9 +316,11 @@ class TestAskWithRagStream:
 
         mock_embeddings.return_value = [[0.1] * 768]
         mock_search.return_value = []
-        mock_stream.return_value = iter([
-            {"type": "answer", "content": "无法回答"},
-        ])
+        mock_stream.return_value = iter(
+            [
+                {"type": "answer", "content": "无法回答"},
+            ]
+        )
 
         chunks = list(ask_with_rag_stream("未知问题", kb_id=1))
 
@@ -340,9 +338,11 @@ class TestAskWithRagStream:
 
         mock_embeddings.return_value = [[0.1] * 768]
         mock_search.return_value = [("文档内容", {"source": "test.pdf"})]
-        mock_stream.return_value = iter([
-            {"type": "answer", "content": "流式回答"},
-        ])
+        mock_stream.return_value = iter(
+            [
+                {"type": "answer", "content": "流式回答"},
+            ]
+        )
 
         history = [
             {"role": "user", "content": "历史问题"},
@@ -364,9 +364,11 @@ class TestAskWithRagStream:
 
         mock_embeddings.return_value = [[0.1] * 768]
         mock_search.return_value = [("文档内容", {"source": "test.pdf"})]
-        mock_stream.return_value = iter([
-            {"type": "answer", "content": "回答"},
-        ])
+        mock_stream.return_value = iter(
+            [
+                {"type": "answer", "content": "回答"},
+            ]
+        )
 
         chunks = list(ask_with_rag_stream("问题", kb_id=1, summary="摘要内容"))
 

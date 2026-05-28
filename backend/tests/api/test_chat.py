@@ -171,9 +171,7 @@ class TestChatEndpoint:
         assert res.status_code == 401
 
     @patch("app.api.chat.chat_completion")
-    def test_chat_creates_conversation_record(
-        self, mock_chat, client, user_headers, db_session
-    ):
+    def test_chat_creates_conversation_record(self, mock_chat, client, user_headers, db_session):
         """对话后正确创建 conversation 记录"""
         from app.models.conversation import Conversation
 
@@ -187,9 +185,7 @@ class TestChatEndpoint:
 
         assert res.status_code == 200
 
-        conv = db_session.query(Conversation).filter(
-            Conversation.question == "记录测试"
-        ).first()
+        conv = db_session.query(Conversation).filter(Conversation.question == "记录测试").first()
         assert conv is not None
         assert conv.answer == "记录测试回答"
 
@@ -203,7 +199,7 @@ def _parse_sse(text: str) -> list[dict]:
     for line in text.strip().split("\n"):
         line = line.strip()
         if line.startswith("data: ") and line != "data: [DONE]":
-            payload = line[len("data: "):]
+            payload = line[len("data: ") :]
             chunks.append(json.loads(payload))
     return chunks
 
@@ -245,9 +241,7 @@ class TestChatStreamEndpoint:
         """流式对话带会话"""
         from app.models.session import Session
 
-        mock_stream.return_value = iter(
-            [{"type": "answer", "content": "流式回答"}]
-        )
+        mock_stream.return_value = iter([{"type": "answer", "content": "流式回答"}])
         mock_title.return_value = "标题"
 
         session = Session(user_id=1, title="流式测试")
@@ -277,9 +271,7 @@ class TestChatStreamEndpoint:
         db_session.commit()
         db_session.refresh(kb)
 
-        mock_rag_stream.return_value = iter(
-            [{"type": "answer", "content": "RAG流式"}]
-        )
+        mock_rag_stream.return_value = iter([{"type": "answer", "content": "RAG流式"}])
 
         res = client.post(
             "/api/chat/stream",
@@ -314,9 +306,7 @@ class TestLoadSessionHistory:
         db_session.commit()
         db_session.refresh(session)
 
-        loaded_session, summary, history = _load_session_history(
-            session.id, db_session
-        )
+        loaded_session, summary, history = _load_session_history(session.id, db_session)
 
         assert loaded_session.id == session.id
         assert summary is None
@@ -346,9 +336,7 @@ class TestLoadSessionHistory:
             db_session.add(conv)
         db_session.commit()
 
-        loaded_session, summary, history = _load_session_history(
-            session.id, db_session
-        )
+        loaded_session, summary, history = _load_session_history(session.id, db_session)
 
         assert loaded_session.id == session.id
         assert summary is None
@@ -370,9 +358,7 @@ class TestLoadSessionHistory:
         db_session.commit()
         db_session.refresh(session)
 
-        loaded_session, summary, history = _load_session_history(
-            session.id, db_session
-        )
+        loaded_session, summary, history = _load_session_history(session.id, db_session)
 
         assert loaded_session.id == session.id
         assert summary == "之前的摘要"
@@ -458,9 +444,7 @@ class TestMaybeCompress:
 
         # 验证：前 15 条被删除，剩余 5 条
         remaining = (
-            db_session.query(Conversation)
-            .filter(Conversation.session_id == session.id)
-            .count()
+            db_session.query(Conversation).filter(Conversation.session_id == session.id).count()
         )
         assert remaining == 5
 
@@ -501,9 +485,7 @@ class TestMaybeCompress:
         _maybe_compress(session.id, db_session)
 
         remaining = (
-            db_session.query(Conversation)
-            .filter(Conversation.session_id == session.id)
-            .count()
+            db_session.query(Conversation).filter(Conversation.session_id == session.id).count()
         )
         # 25 - 15 = 10
         assert remaining == 10
@@ -533,16 +515,12 @@ class TestMaybeCompress:
         _maybe_compress(session.id, db_session)
 
         remaining = (
-            db_session.query(Conversation)
-            .filter(Conversation.session_id == session.id)
-            .count()
+            db_session.query(Conversation).filter(Conversation.session_id == session.id).count()
         )
         assert remaining == 5
 
     @patch("app.api.chat.generate_summary")
-    def test_compress_appends_to_existing_summary(
-        self, mock_summary, db_session
-    ):
+    def test_compress_appends_to_existing_summary(self, mock_summary, db_session):
         """已有摘要时，新摘要追加到旧摘要后面"""
         from app.api.chat import _maybe_compress
         from app.models.conversation import Conversation
@@ -585,9 +563,7 @@ class TestMaybeCompress:
         _maybe_compress(session.id, db_session)
 
     @patch("app.api.chat.generate_summary")
-    def test_compress_verify_deleted_conversations_are_oldest(
-        self, mock_summary, db_session
-    ):
+    def test_compress_verify_deleted_conversations_are_oldest(self, mock_summary, db_session):
         """验证被删除的是最早的 15 条对话"""
         from app.api.chat import _maybe_compress
         from app.models.conversation import Conversation
@@ -616,9 +592,7 @@ class TestMaybeCompress:
         _maybe_compress(session.id, db_session)
 
         remaining = (
-            db_session.query(Conversation)
-            .filter(Conversation.session_id == session.id)
-            .all()
+            db_session.query(Conversation).filter(Conversation.session_id == session.id).all()
         )
         remaining_questions = {c.question for c in remaining}
         # 最早的 15 条（问题0-14）被删除，保留问题15-19

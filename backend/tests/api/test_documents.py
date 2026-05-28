@@ -54,8 +54,7 @@ class TestUploadDocument:
     @patch("app.api.documents.split_text")
     @patch("app.api.documents.extract_text")
     def test_upload_txt_success(
-        self, mock_extract, mock_split, mock_embeddings, mock_add,
-        client, user_headers, db_session
+        self, mock_extract, mock_split, mock_embeddings, mock_add, client, user_headers, db_session
     ):
         """测试上传 TXT 文件成功"""
         from app.models.knowledge_base import KnowledgeBase
@@ -86,8 +85,7 @@ class TestUploadDocument:
     @patch("app.api.documents.split_text")
     @patch("app.api.documents.extract_text")
     def test_upload_md_success(
-        self, mock_extract, mock_split, mock_embeddings, mock_add,
-        client, user_headers, db_session
+        self, mock_extract, mock_split, mock_embeddings, mock_add, client, user_headers, db_session
     ):
         """测试上传 Markdown 文件成功"""
         from app.models.knowledge_base import KnowledgeBase
@@ -201,8 +199,7 @@ class TestUploadDocument:
     @patch("app.api.documents.split_text")
     @patch("app.api.documents.extract_text")
     def test_upload_admin_can_upload_to_others_kb(
-        self, mock_extract, mock_split, mock_embeddings, mock_add,
-        client, admin_headers, db_session
+        self, mock_extract, mock_split, mock_embeddings, mock_add, client, admin_headers, db_session
     ):
         """测试管理员可以上传到他人的知识库"""
         from app.models.knowledge_base import KnowledgeBase
@@ -320,7 +317,9 @@ class TestDeleteDocument:
 
     @patch("app.api.documents.os.path.exists")
     @patch("app.api.documents.os.remove")
-    def test_delete_document_success(self, mock_remove, mock_exists, client, user_headers, db_session):
+    def test_delete_document_success(
+        self, mock_remove, mock_exists, client, user_headers, db_session
+    ):
         """测试删除文档成功"""
         from app.models.document import Document
         from app.models.knowledge_base import KnowledgeBase
@@ -353,7 +352,9 @@ class TestDeleteDocument:
 
     @patch("app.api.documents.os.path.exists")
     @patch("app.api.documents.os.remove")
-    def test_delete_document_file_already_removed(self, mock_remove, mock_exists, client, user_headers, db_session):
+    def test_delete_document_file_already_removed(
+        self, mock_remove, mock_exists, client, user_headers, db_session
+    ):
         """测试文件已被手动删除时仍可删除记录"""
         from app.models.document import Document
         from app.models.knowledge_base import KnowledgeBase

@@ -457,9 +457,7 @@ class TestChatMiMo:
 
         llm = ChatMiMo(api_key="test-key")
 
-        payload = llm._get_request_payload(
-            [HumanMessage(content="hello")], stop=["STOP"]
-        )
+        payload = llm._get_request_payload([HumanMessage(content="hello")], stop=["STOP"])
 
         assert payload["stop"] == ["STOP"]
 
@@ -476,8 +474,6 @@ class TestChatMiMo:
 
         llm = ChatMiMo(api_key="test-key")
 
-        payload = llm._get_request_payload(
-            [HumanMessage(content="hello")], stop=None
-        )
+        payload = llm._get_request_payload([HumanMessage(content="hello")], stop=None)
 
         assert "stop" not in payload

@@ -14,7 +14,9 @@ class TestExtractText:
         """测试提取 TXT 文件"""
         from app.services.document_processor import extract_text
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, encoding="utf-8"
+        ) as f:
             f.write("测试文本内容")
             filepath = f.name
 
@@ -28,7 +30,9 @@ class TestExtractText:
         """测试提取 Markdown 文件"""
         from app.services.document_processor import extract_text
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as f:
             f.write("# 标题\n\n内容")
             filepath = f.name
 
