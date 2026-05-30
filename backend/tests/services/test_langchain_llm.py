@@ -380,8 +380,9 @@ class TestChatMiMo:
         assert llm.model_name == "mimo-v2"
         assert llm.openai_api_key.get_secret_value() == "sk-secret"
 
+    @patch("app.services.langchain_llm._convert_message_to_dict")
     @patch("app.services.langchain_llm.settings")
-    def test_get_request_payload_injects_reasoning(self, mock_settings):
+    def test_get_request_payload_injects_reasoning(self, mock_settings, mock_convert):
         """测试 _get_request_payload 注入 reasoning_content"""
         from langchain_core.messages import AIMessage
 
@@ -390,6 +391,9 @@ class TestChatMiMo:
         mock_settings.OPENAI_MODEL = "test"
         mock_settings.OPENAI_API_KEY = "test"
         mock_settings.OPENAI_BASE_URL = "http://test"
+
+        # Mock _convert_message_to_dict 返回简单 dict
+        mock_convert.return_value = {"role": "assistant", "content": "回答"}
 
         llm = ChatMiMo(api_key="test-key")
 
@@ -405,8 +409,9 @@ class TestChatMiMo:
         assert len(messages) == 1
         assert messages[0]["reasoning_content"] == "思考过程"
 
+    @patch("app.services.langchain_llm._convert_message_to_dict")
     @patch("app.services.langchain_llm.settings")
-    def test_get_request_payload_no_reasoning(self, mock_settings):
+    def test_get_request_payload_no_reasoning(self, mock_settings, mock_convert):
         """测试 _get_request_payload 无 reasoning_content 时不注入"""
         from langchain_core.messages import AIMessage
 
@@ -415,6 +420,9 @@ class TestChatMiMo:
         mock_settings.OPENAI_MODEL = "test"
         mock_settings.OPENAI_API_KEY = "test"
         mock_settings.OPENAI_BASE_URL = "http://test"
+
+        # Mock _convert_message_to_dict 返回简单 dict
+        mock_convert.return_value = {"role": "assistant", "content": "回答"}
 
         llm = ChatMiMo(api_key="test-key")
 
@@ -426,8 +434,9 @@ class TestChatMiMo:
         assert len(messages) == 1
         assert "reasoning_content" not in messages[0]
 
+    @patch("app.services.langchain_llm._convert_message_to_dict")
     @patch("app.services.langchain_llm.settings")
-    def test_get_request_payload_multiple_messages(self, mock_settings):
+    def test_get_request_payload_multiple_messages(self, mock_settings, mock_convert):
         """测试 _get_request_payload 多条消息混合场景"""
         from langchain_core.messages import AIMessage, HumanMessage
 
@@ -436,6 +445,14 @@ class TestChatMiMo:
         mock_settings.OPENAI_MODEL = "test"
         mock_settings.OPENAI_API_KEY = "test"
         mock_settings.OPENAI_BASE_URL = "http://test"
+
+        # Mock _convert_message_to_dict 返回简单 dict
+        def side_effect(msg):
+            if isinstance(msg, AIMessage):
+                return {"role": "assistant", "content": msg.content}
+            return {"role": "user", "content": msg.content}
+
+        mock_convert.side_effect = side_effect
 
         llm = ChatMiMo(api_key="test-key")
 

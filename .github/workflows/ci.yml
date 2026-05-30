@@ -68,7 +68,7 @@ jobs:
         run: pip install -r backend/requirements.txt
 
       - name: Install test tools
-        run: pip install pytest pytest-cov ruff
+        run: pip install pytest pytest-cov pytest-asyncio ruff
 
       - name: Run backend tests
         run: pytest --cov=backend/app --cov-report=term-missing --cov-fail-under=95

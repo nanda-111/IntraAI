@@ -59,12 +59,14 @@ class TestChatEndpoint:
         assert res.json()["answer"] == "RAG 回答"
         mock_rag.assert_called_once()
 
+    @patch("app.api.chat.generate_title")
     @patch("app.api.chat.chat_completion")
-    def test_chat_with_session(self, mock_chat, client, user_headers, db_session):
+    def test_chat_with_session(self, mock_chat, mock_title, client, user_headers, db_session):
         """带会话的对话：会话存在，加载历史"""
         from app.models.session import Session
 
         mock_chat.return_value = ("", "回答")
+        mock_title.return_value = "生成的标题"
 
         session = Session(user_id=1, title="新对话")
         db_session.add(session)
