@@ -3,10 +3,9 @@
 import sys
 from unittest.mock import MagicMock, patch
 
-# ---- 模块级 Mock：在 langchain_tools 首次导入前拦截 DuckDuckGoSearchRun ----
-# langchain_tools.py 在模块顶层执行 _ddg_search = DuckDuckGoSearchRun()
-# 而 DuckDuckGoSearchRun 需要 ddgs 包，测试环境可能未安装。
-# 因此在导入 langchain_tools 之前，用 mock 替换掉它。
+# ---- 模块级 Mock：在 langchain_tools 首次导入前拦截外部依赖 ----
+# 1. DuckDuckGoSearchRun 需要 ddgs 包，CI 可能未安装
+# 2. sentence_transformers 需要额外安装，CI 可能未安装
 
 _mock_ddg_instance = MagicMock()
 _mock_ddg_instance.run.return_value = ""
@@ -16,6 +15,10 @@ _ddg_patcher = patch(
     return_value=_mock_ddg_instance,
 )
 _ddg_patcher.start()
+
+# Mock sentence_transformers（CI 中可能未安装）
+if "sentence_transformers" not in sys.modules:
+    sys.modules["sentence_transformers"] = MagicMock()
 
 # 如果模块之前已因导入失败而缓存了残留状态，清除后重新加载
 if "app.services.langchain_tools" in sys.modules:

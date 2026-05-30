@@ -5,10 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# ---- 模块级 Mock：在 langchain_agent 首次导入前拦截 DuckDuckGoSearchRun ----
-# langchain_agent.py -> langchain_tools.py 在模块顶层执行
-# _ddg_search = DuckDuckGoSearchRun()，需要 ddgs 包。
-# 在导入 langchain_agent 之前 mock 掉它。
+# ---- 模块级 Mock：在 langchain_agent 首次导入前拦截外部依赖 ----
+# 1. DuckDuckGoSearchRun 需要 ddgs 包，CI 可能未安装
+# 2. sentence_transformers 需要额外安装，CI 可能未安装
+# 3. langchain.agents.create_agent 可能不存在于当前 langchain 版本
 
 _mock_ddg_instance = MagicMock()
 _mock_ddg_instance.run.return_value = ""
@@ -18,6 +18,16 @@ _ddg_patcher = patch(
     return_value=_mock_ddg_instance,
 )
 _ddg_patcher.start()
+
+# Mock sentence_transformers（CI 中可能未安装）
+if "sentence_transformers" not in sys.modules:
+    sys.modules["sentence_transformers"] = MagicMock()
+
+# Mock create_agent（可能不存在于当前 langchain 版本）
+import langchain.agents  # noqa: E402
+
+if not hasattr(langchain.agents, "create_agent"):
+    langchain.agents.create_agent = MagicMock()
 
 # 清除之前因导入失败而缓存的残留状态
 for mod_name in ["app.services.langchain_tools", "app.services.langchain_agent"]:
