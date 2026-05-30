@@ -9,6 +9,7 @@ import pytest
 # 1. DuckDuckGoSearchRun 需要 ddgs 包，CI 可能未安装
 # 2. sentence_transformers 需要额外安装，CI 可能未安装
 # 3. langchain.agents.create_agent 可能不存在于当前 langchain 版本
+# 4. langchain_openai 内部函数可能因版本不同而缺失
 
 _mock_ddg_instance = MagicMock()
 _mock_ddg_instance.run.return_value = ""
@@ -29,8 +30,20 @@ import langchain.agents  # noqa: E402
 if not hasattr(langchain.agents, "create_agent"):
     langchain.agents.create_agent = MagicMock()
 
+# Mock langchain_openai 内部函数（版本兼容性问题）
+import langchain_openai.chat_models.base as _lc_base  # noqa: E402
+
+if not hasattr(_lc_base, "_convert_from_v1_to_chat_completions"):
+    _lc_base._convert_from_v1_to_chat_completions = MagicMock()
+if not hasattr(_lc_base, "_convert_message_to_dict"):
+    _lc_base._convert_message_to_dict = MagicMock()
+
 # 清除之前因导入失败而缓存的残留状态
-for mod_name in ["app.services.langchain_tools", "app.services.langchain_agent"]:
+for mod_name in [
+    "app.services.langchain_llm",
+    "app.services.langchain_tools",
+    "app.services.langchain_agent",
+]:
     if mod_name in sys.modules:
         del sys.modules[mod_name]
 

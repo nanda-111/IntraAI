@@ -1,6 +1,20 @@
 """LangChain LLM 封装模块测试"""
 
+import sys
 from unittest.mock import MagicMock, patch
+
+# ---- 模块级 Mock：处理 CI 环境中的依赖问题 ----
+# Mock sentence_transformers（CI 中可能未安装）
+if "sentence_transformers" not in sys.modules:
+    sys.modules["sentence_transformers"] = MagicMock()
+
+# Mock langchain_openai 内部函数（版本兼容性问题）
+import langchain_openai.chat_models.base as _lc_base  # noqa: E402
+
+if not hasattr(_lc_base, "_convert_from_v1_to_chat_completions"):
+    _lc_base._convert_from_v1_to_chat_completions = MagicMock()
+if not hasattr(_lc_base, "_convert_message_to_dict"):
+    _lc_base._convert_message_to_dict = MagicMock()
 
 
 class TestConvertDictToMessageWithReasoning:
