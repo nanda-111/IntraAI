@@ -236,3 +236,72 @@ class TestSplitByStructure:
         assert len(chunks) == 3
         for chunk in chunks:
             assert chunk["title_path"] == ""
+
+
+class TestSplitBySemantics:
+    """_split_by_semantics 函数测试"""
+
+    @patch("app.services.document_processor.get_embeddings")
+    def test_splits_at_semantic_boundary(self, mock_embeddings):
+        """语义差异大的相邻句子应在边界处切分"""
+        from app.services.document_processor import _split_by_semantics
+
+        # 模拟：前两句相似（薪酬相关），后两句相似（考勤相关），中间差异大
+        def fake_embed(texts):
+            result = []
+            for t in texts:
+                if "薪" in t or "工资" in t:
+                    result.append([1.0] + [0.0] * 767)
+                elif "考勤" in t or "打卡" in t:
+                    result.append([0.0, 1.0] + [0.0] * 766)
+                else:
+                    result.append([0.5] * 768)
+            return result
+
+        mock_embeddings.side_effect = fake_embed
+
+        sentences = [
+            "基本工资按月发放。",
+            "绩效工资根据考核结果确定。",
+            "员工应每日打卡考勤。",
+            "迟到早退将按制度处理。",
+        ]
+        text = "".join(sentences)
+        chunks = _split_by_semantics(text, chunk_size=200)
+
+        assert len(chunks) >= 2
+        mock_embeddings.assert_called_once()
+
+    @patch("app.services.document_processor.get_embeddings")
+    def test_short_text_returns_single_chunk(self, mock_embeddings):
+        """只有一个句子时返回单个 chunk"""
+        from app.services.document_processor import _split_by_semantics
+
+        mock_embeddings.return_value = [[0.1] * 768]
+
+        chunks = _split_by_semantics("单句文本。", chunk_size=200)
+        assert len(chunks) == 1
+        assert chunks[0]["text"] == "单句文本。"
+
+    @patch("app.services.document_processor.get_embeddings")
+    def test_returns_metadata(self, mock_embeddings):
+        """每个 chunk 应包含 text、title_path、char_offset"""
+        from app.services.document_processor import _split_by_semantics
+
+        mock_embeddings.return_value = [[0.1] * 768, [0.2] * 768]
+
+        chunks = _split_by_semantics("句子一。句子二。", chunk_size=200)
+        for chunk in chunks:
+            assert "text" in chunk
+            assert "title_path" in chunk
+            assert "char_offset" in chunk
+            assert chunk["title_path"] == ""
+
+    @patch("app.services.document_processor.get_embeddings")
+    def test_empty_text(self, mock_embeddings):
+        """空文本返回空列表"""
+        from app.services.document_processor import _split_by_semantics
+
+        chunks = _split_by_semantics("", chunk_size=200)
+        assert chunks == []
+        mock_embeddings.assert_not_called()

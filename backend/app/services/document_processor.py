@@ -13,7 +13,9 @@
 
 import re
 
+import numpy as np
 import fitz  # PyMuPDF — 用于解析 PDF 文件（需安装：pip install PyMuPDF）
+from app.services.embedding import get_embeddings
 from docx import (
     Document as DocxDocument,  # python-docx — 用于解析 .docx 文件（需安装：pip install python-docx）
 )
@@ -346,5 +348,78 @@ def _split_by_structure(
                 "title_path": title_path,
                 "char_offset": actual_offset,
             })
+
+    return result
+
+
+def _split_by_semantics(
+    text: str, chunk_size: int = 500, threshold_percentile: float = 25
+) -> list[dict]:
+    """
+    语义切分：基于相邻句子的 embedding 相似度骤降处切分。
+
+    参数：
+        text: 待切分文本
+        chunk_size: 单个 chunk 最大字符数
+        threshold_percentile: 相似度阈值百分位，低于此百分位的相似度处切分
+
+    返回：
+        [{"text": str, "title_path": "", "char_offset": int}, ...]
+    """
+    if not text.strip():
+        return []
+
+    # 按句子切分
+    sentences = [s.strip() for s in _SENTENCE_ENDINGS.split(text) if s.strip()]
+    if len(sentences) <= 1:
+        return [{"text": text.strip(), "title_path": "", "char_offset": 0}]
+
+    # 计算每个句子的 embedding
+    embeddings = get_embeddings(sentences)
+    embeddings_np = np.array(embeddings)
+
+    # 计算相邻句子的余弦相似度
+    similarities = []
+    for i in range(len(embeddings_np) - 1):
+        a, b = embeddings_np[i], embeddings_np[i + 1]
+        dot = np.dot(a, b)
+        norm = np.linalg.norm(a) * np.linalg.norm(b)
+        sim = dot / norm if norm > 0 else 0.0
+        similarities.append(sim)
+
+    if not similarities:
+        return [{"text": " ".join(sentences), "title_path": "", "char_offset": 0}]
+
+    # 在相似度低于阈值处切分
+    threshold = np.percentile(similarities, threshold_percentile)
+    split_indices = [i for i, sim in enumerate(similarities) if sim < threshold]
+
+    # 按切分点分组句子
+    groups = []
+    prev = 0
+    for idx in split_indices:
+        groups.append(sentences[prev : idx + 1])
+        prev = idx + 1
+    if prev < len(sentences):
+        groups.append(sentences[prev:])
+
+    # 合并过短的组，拆分过长的组
+    result = []
+    current_offset = 0
+    for group in groups:
+        chunk_text = "".join(group)
+        # 如果超长，用普通切分兜底
+        if len(chunk_text) > chunk_size:
+            sub_chunks = split_text(chunk_text, chunk_size=chunk_size)
+            for sc in sub_chunks:
+                idx = text.find(sc, current_offset)
+                actual_offset = idx if idx >= 0 else current_offset
+                result.append({"text": sc, "title_path": "", "char_offset": actual_offset})
+                current_offset = actual_offset + len(sc)
+        else:
+            idx = text.find(chunk_text, current_offset)
+            actual_offset = idx if idx >= 0 else current_offset
+            result.append({"text": chunk_text, "title_path": "", "char_offset": actual_offset})
+            current_offset = actual_offset + len(chunk_text)
 
     return result
