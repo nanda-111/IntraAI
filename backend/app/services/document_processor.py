@@ -423,3 +423,91 @@ def _split_by_semantics(
             current_offset = actual_offset + len(chunk_text)
 
     return result
+
+
+# 混合策略阈值：低于此字符数的文档使用简单切分
+_SHORT_DOC_THRESHOLD = 1000
+
+
+def split_document(
+    text: str,
+    file_type: str = "txt",
+    chunk_size: int = 500,
+    overlap: int = 50,
+    pages: list[tuple[str, int]] | None = None,
+) -> list[dict]:
+    """
+    统一文档切分入口，根据文档特征自动选择切分策略。
+
+    策略选择逻辑：
+      1. 有标题结构 → 结构感知切分
+      2. 无标题 + 短文档（< 1000字）→ 普通段落/句子切分
+      3. 无标题 + 长文档 → 语义切分
+
+    参数：
+        text: 完整文本（当传入 pages 时可为空字符串）
+        file_type: 文件类型
+        chunk_size: chunk 最大字符数
+        overlap: 重叠字符数
+        pages: PDF 页面数据 [(页文本, 页码), ...]，为 None 时从 text 切分
+
+    返回：
+        [{"text": str, "title_path": str, "char_offset": int, "page": int}, ...]
+    """
+    if pages:
+        return _split_pages(pages, chunk_size=chunk_size, overlap=overlap)
+
+    if not text.strip():
+        return []
+
+    headers = _detect_headers(text)
+
+    if headers:
+        chunks = _split_by_structure(text, chunk_size=chunk_size, overlap=overlap)
+        for chunk in chunks:
+            chunk["page"] = 1
+        return chunks
+
+    if len(text) < _SHORT_DOC_THRESHOLD:
+        plain_chunks = split_text(text, chunk_size=chunk_size, overlap=overlap)
+        result = []
+        offset = 0
+        for chunk in plain_chunks:
+            idx = text.find(chunk, offset)
+            actual_offset = idx if idx >= 0 else offset
+            result.append({
+                "text": chunk,
+                "title_path": "",
+                "char_offset": actual_offset,
+                "page": 1,
+            })
+            offset = actual_offset + len(chunk)
+        return result
+
+    # 长文档无标题 → 语义切分
+    chunks = _split_by_semantics(text, chunk_size=chunk_size)
+    for chunk in chunks:
+        chunk["page"] = 1
+    return chunks
+
+
+def _split_pages(
+    pages: list[tuple[str, int]], chunk_size: int = 500, overlap: int = 50
+) -> list[dict]:
+    """按页面分割，每页独立走切分策略。"""
+    result = []
+    for page_text, page_num in pages:
+        if not page_text.strip():
+            continue
+        headers = _detect_headers(page_text)
+        if headers:
+            chunks = _split_by_structure(page_text, chunk_size=chunk_size, overlap=overlap)
+        elif len(page_text) < _SHORT_DOC_THRESHOLD:
+            plain = split_text(page_text, chunk_size=chunk_size, overlap=overlap)
+            chunks = [{"text": c, "title_path": "", "char_offset": 0} for c in plain]
+        else:
+            chunks = _split_by_semantics(page_text, chunk_size=chunk_size)
+        for chunk in chunks:
+            chunk["page"] = page_num
+        result.extend(chunks)
+    return result

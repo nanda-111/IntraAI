@@ -305,3 +305,60 @@ class TestSplitBySemantics:
         chunks = _split_by_semantics("", chunk_size=200)
         assert chunks == []
         mock_embeddings.assert_not_called()
+
+
+class TestSplitDocument:
+    """split_document 统一入口测试"""
+
+    def test_returns_list_of_dicts(self):
+        """返回值应为 dict 列表，包含 text、title_path、char_offset、page"""
+        from app.services.document_processor import split_document
+
+        text = "段落一。\n\n段落二。"
+        result = split_document(text, file_type="txt", chunk_size=100)
+
+        assert isinstance(result, list)
+        assert len(result) >= 1
+        for chunk in result:
+            assert "text" in chunk
+            assert "title_path" in chunk
+            assert "char_offset" in chunk
+            assert "page" in chunk
+
+    def test_uses_structure_when_headers_present(self):
+        """有标题时应使用结构切分"""
+        from app.services.document_processor import split_document
+
+        text = "# 第一章\n\n内容一。\n\n# 第二章\n\n内容二。"
+        result = split_document(text, file_type="md", chunk_size=100)
+
+        title_paths = [c["title_path"] for c in result]
+        assert any("第一章" in p for p in title_paths)
+
+    def test_short_text_no_semantic(self):
+        """短文本不应触发语义切分"""
+        from app.services.document_processor import split_document
+
+        text = "这是一段短文本。"
+        result = split_document(text, file_type="txt", chunk_size=500)
+
+        assert len(result) == 1
+        assert result[0]["text"] == "这是一段短文本。"
+
+    def test_page_metadata_propagated(self):
+        """页码元数据应正确传递到 chunk 中"""
+        from app.services.document_processor import split_document
+
+        pages = [("第一页内容。", 1), ("第二页内容。", 2)]
+        result = split_document("", file_type="pdf", chunk_size=100, pages=pages)
+
+        pages_in_result = [c["page"] for c in result]
+        assert 1 in pages_in_result
+        assert 2 in pages_in_result
+
+    def test_empty_text(self):
+        """空文本返回空列表"""
+        from app.services.document_processor import split_document
+
+        result = split_document("", file_type="txt", chunk_size=100)
+        assert result == []
