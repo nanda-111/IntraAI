@@ -254,7 +254,7 @@ class TestSplitByStructure:
 class TestSplitBySemantics:
     """_split_by_semantics 函数测试"""
 
-    @patch("app.services.document_processor.get_embeddings")
+    @patch("app.services.embedding.get_embeddings")
     def test_splits_at_semantic_boundary(self, mock_embeddings):
         """语义差异大的相邻句子应在边界处切分"""
         from app.services.document_processor import _split_by_semantics
@@ -285,7 +285,7 @@ class TestSplitBySemantics:
         assert len(chunks) >= 2
         mock_embeddings.assert_called_once()
 
-    @patch("app.services.document_processor.get_embeddings")
+    @patch("app.services.embedding.get_embeddings")
     def test_short_text_returns_single_chunk(self, mock_embeddings):
         """只有一个句子时返回单个 chunk"""
         from app.services.document_processor import _split_by_semantics
@@ -296,7 +296,7 @@ class TestSplitBySemantics:
         assert len(chunks) == 1
         assert chunks[0]["text"] == "单句文本。"
 
-    @patch("app.services.document_processor.get_embeddings")
+    @patch("app.services.embedding.get_embeddings")
     def test_returns_metadata(self, mock_embeddings):
         """每个 chunk 应包含 text、title_path、char_offset"""
         from app.services.document_processor import _split_by_semantics
@@ -310,7 +310,7 @@ class TestSplitBySemantics:
             assert "char_offset" in chunk
             assert chunk["title_path"] == ""
 
-    @patch("app.services.document_processor.get_embeddings")
+    @patch("app.services.embedding.get_embeddings")
     def test_empty_text(self, mock_embeddings):
         """空文本返回空列表"""
         from app.services.document_processor import _split_by_semantics
@@ -376,7 +376,7 @@ class TestSplitDocument:
         result = split_document("", file_type="txt", chunk_size=100)
         assert result == []
 
-    @patch("app.services.document_processor.get_embeddings")
+    @patch("app.services.embedding.get_embeddings")
     def test_long_text_without_headers_uses_semantic(self, mock_embeddings):
         """长文本无标题应触发语义切分"""
         from app.services.document_processor import _SHORT_DOC_THRESHOLD, split_document
@@ -449,7 +449,7 @@ class TestSplitBySentenceEdgeCases:
 class TestSplitBySemanticsEdgeCases:
     """_split_by_semantics 边界测试"""
 
-    @patch("app.services.document_processor.get_embeddings")
+    @patch("app.services.embedding.get_embeddings")
     def test_single_sentence_returns_single_chunk(self, mock_embeddings):
         """单句文本返回单个 chunk（不调用 embedding）"""
         from app.services.document_processor import _split_by_semantics
@@ -459,7 +459,7 @@ class TestSplitBySemanticsEdgeCases:
         assert chunks[0]["text"] == "一句完整的话。"
         mock_embeddings.assert_not_called()
 
-    @patch("app.services.document_processor.get_embeddings")
+    @patch("app.services.embedding.get_embeddings")
     def test_chunk_exceeds_size_falls_back(self, mock_embeddings):
         """语义分组超长时应退化为普通切分"""
         from app.services.document_processor import _split_by_semantics

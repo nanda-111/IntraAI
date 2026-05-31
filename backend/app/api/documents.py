@@ -145,15 +145,10 @@ async def upload_document(
     # 步骤 1：提取文本（带页码信息）
     pages = extract_text_with_pages(filepath, ext)
 
-    # 步骤 2：智能切分（自动选择策略）
-    all_chunks_meta = []
-    for page_text, page_num in pages:
-        page_chunks = split_document(
-            page_text, file_type=ext, chunk_size=500, overlap=50
-        )
-        for chunk in page_chunks:
-            chunk["page"] = page_num
-        all_chunks_meta.extend(page_chunks)
+    # 步骤 2：智能切分（自动选择策略，按页处理保留页码）
+    all_chunks_meta = split_document(
+        "", file_type=ext, chunk_size=500, overlap=50, pages=pages
+    )
 
     chunk_count = 0
     if all_chunks_meta:

@@ -13,9 +13,7 @@
 
 import re
 
-import numpy as np
 import fitz  # PyMuPDF — 用于解析 PDF 文件（需安装：pip install PyMuPDF）
-from app.services.embedding import get_embeddings
 from docx import (
     Document as DocxDocument,  # python-docx — 用于解析 .docx 文件（需安装：pip install python-docx）
 )
@@ -44,13 +42,15 @@ def extract_text_with_pages(filepath: str, file_type: str) -> list[tuple[str, in
 def _extract_pdf_with_pages(filepath: str) -> list[tuple[str, int]]:
     """提取 PDF 文本，保留页码信息。"""
     doc = fitz.open(filepath)
-    pages = []
-    for i, page in enumerate(doc):
-        text = page.get_text().strip()
-        if text:
-            pages.append((text, i + 1))
-    doc.close()
-    return pages
+    try:
+        pages = []
+        for i, page in enumerate(doc):
+            text = page.get_text().strip()
+            if text:
+                pages.append((text, i + 1))
+        return pages
+    finally:
+        doc.close()
 
 
 def extract_text(filepath: str, file_type: str) -> str:
@@ -336,9 +336,10 @@ def _split_by_structure(
             sections.insert(0, (0, "", preamble))
 
     # 对每个 section 进行段落/句子级切分
+    # 结构边界已提供语义分隔，section 内部不需要 overlap（避免偏移追踪失准）
     result = []
     for section_offset, _title, section_text in sections:
-        sub_chunks = split_text(section_text, chunk_size=chunk_size, overlap=overlap)
+        sub_chunks = split_text(section_text, chunk_size=chunk_size, overlap=0)
         for chunk in sub_chunks:
             idx = section_text.find(chunk)
             actual_offset = section_offset + (idx if idx >= 0 else 0)
@@ -373,6 +374,10 @@ def _split_by_semantics(
     sentences = [s.strip() for s in _SENTENCE_ENDINGS.split(text) if s.strip()]
     if len(sentences) <= 1:
         return [{"text": text.strip(), "title_path": "", "char_offset": 0}]
+
+    # 延迟导入：仅语义切分需要 numpy 和 embedding 服务
+    import numpy as np
+    from app.services.embedding import get_embeddings
 
     # 计算每个句子的 embedding
     embeddings = get_embeddings(sentences)
@@ -504,7 +509,13 @@ def _split_pages(
             chunks = _split_by_structure(page_text, chunk_size=chunk_size, overlap=overlap)
         elif len(page_text) < _SHORT_DOC_THRESHOLD:
             plain = split_text(page_text, chunk_size=chunk_size, overlap=overlap)
-            chunks = [{"text": c, "title_path": "", "char_offset": 0} for c in plain]
+            chunks = []
+            offset = 0
+            for c in plain:
+                idx = page_text.find(c, offset)
+                actual_offset = idx if idx >= 0 else offset
+                chunks.append({"text": c, "title_path": "", "char_offset": actual_offset})
+                offset = actual_offset + len(c)
         else:
             chunks = _split_by_semantics(page_text, chunk_size=chunk_size)
         for chunk in chunks:
