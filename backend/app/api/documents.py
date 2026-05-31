@@ -26,7 +26,7 @@ from app.models.document import Document
 from app.models.knowledge_base import KnowledgeBase
 from app.models.user import User
 from app.schemas.document import DocumentOut
-from app.services.document_processor import extract_text, split_text
+from app.services.document_processor import extract_text_with_pages, split_document
 from app.services.embedding import get_embeddings
 from app.services.vector_store import add_documents, search
 
@@ -142,34 +142,40 @@ async def upload_document(
     #   更优方案（后续可改进）：使用 Celery 等异步任务队列，
     #   上传后立即返回，后台异步处理，通过轮询或 WebSocket 通知前端。
 
-    # 步骤 1：从文件中提取纯文本
-    # extract_text 根据文件扩展名选择对应的解析器（PDF 用 PyMuPDF，
-    # Word 用 python-docx，TXT/MD 直接读取），返回纯文本字符串。
-    text = extract_text(filepath, ext)
+    # 步骤 1：提取文本（带页码信息）
+    pages = extract_text_with_pages(filepath, ext)
 
-    # 步骤 2：将文本切分为小片段（每段 500 字符，重叠 50 字符）
-    # chunk_size=500：每个片段最多 500 个字符，保证向量表示的语义精确性
-    # overlap=50：相邻片段重叠 50 个字符，防止关键句子在切片边界被切断
-    chunks = split_text(text, chunk_size=500, overlap=50)
+    # 步骤 2：智能切分（自动选择策略）
+    all_chunks_meta = []
+    for page_text, page_num in pages:
+        page_chunks = split_document(
+            page_text, file_type=ext, chunk_size=500, overlap=50
+        )
+        for chunk in page_chunks:
+            chunk["page"] = page_num
+        all_chunks_meta.extend(page_chunks)
 
-    # 步骤 3：将切片转换为向量
-    # 初始化 chunk_count 为 0，防止文件为空或解析失败时无值可用
     chunk_count = 0
-    if chunks:
-        # 分批获取向量，每批最多 100 条
-        # 【为什么分批？】
-        #   - OpenAI Embedding API 对单次请求有 token 数量限制
-        #   - 即使不超过 token 限制，大量文本一次性发送可能导致超时
-        #   - 分批处理可以降低单次请求负载，提高稳定性
-        #   - 某一批失败时，只需重试该批，而不是全部重来
+    if all_chunks_meta:
+        chunks = [c["text"] for c in all_chunks_meta]
+
+        # 步骤 3：分批向量化
         all_embeddings = []
         for i in range(0, len(chunks), 100):
             batch = chunks[i : i + 100]
             embs = get_embeddings(batch)
             all_embeddings.extend(embs)
 
-        # 步骤 4：将文本切片和向量存入 ChromaDB
-        metadatas = [{"source": file.filename}] * len(chunks)
+        # 步骤 4：构建增强元数据并存入 ChromaDB
+        metadatas = []
+        for c in all_chunks_meta:
+            metadatas.append({
+                "source": file.filename,
+                "page": c.get("page", 1),
+                "title_path": c.get("title_path", ""),
+                "char_offset": c.get("char_offset", 0),
+                "file_type": ext,
+            })
         chunk_count = add_documents(kb_id, chunks, all_embeddings, metadatas)
 
     # 【异常处理说明】

@@ -51,16 +51,19 @@ class TestUploadDocument:
 
     @patch("app.api.documents.add_documents")
     @patch("app.api.documents.get_embeddings")
-    @patch("app.api.documents.split_text")
-    @patch("app.api.documents.extract_text")
+    @patch("app.api.documents.split_document")
+    @patch("app.api.documents.extract_text_with_pages")
     def test_upload_txt_success(
         self, mock_extract, mock_split, mock_embeddings, mock_add, client, user_headers, db_session
     ):
         """测试上传 TXT 文件成功"""
         from app.models.knowledge_base import KnowledgeBase
 
-        mock_extract.return_value = "文件内容"
-        mock_split.return_value = ["切片1", "切片2"]
+        mock_extract.return_value = [("文件内容", 1)]
+        mock_split.return_value = [
+            {"text": "切片1", "title_path": "", "char_offset": 0},
+            {"text": "切片2", "title_path": "", "char_offset": 100},
+        ]
         mock_embeddings.return_value = [[0.1] * 768, [0.2] * 768]
         mock_add.return_value = 2
 
@@ -82,16 +85,18 @@ class TestUploadDocument:
 
     @patch("app.api.documents.add_documents")
     @patch("app.api.documents.get_embeddings")
-    @patch("app.api.documents.split_text")
-    @patch("app.api.documents.extract_text")
+    @patch("app.api.documents.split_document")
+    @patch("app.api.documents.extract_text_with_pages")
     def test_upload_md_success(
         self, mock_extract, mock_split, mock_embeddings, mock_add, client, user_headers, db_session
     ):
         """测试上传 Markdown 文件成功"""
         from app.models.knowledge_base import KnowledgeBase
 
-        mock_extract.return_value = "# 标题"
-        mock_split.return_value = ["切片1"]
+        mock_extract.return_value = [("# 标题", 1)]
+        mock_split.return_value = [
+            {"text": "切片1", "title_path": "标题", "char_offset": 0},
+        ]
         mock_embeddings.return_value = [[0.1] * 768]
         mock_add.return_value = 1
 
@@ -196,16 +201,18 @@ class TestUploadDocument:
 
     @patch("app.api.documents.add_documents")
     @patch("app.api.documents.get_embeddings")
-    @patch("app.api.documents.split_text")
-    @patch("app.api.documents.extract_text")
+    @patch("app.api.documents.split_document")
+    @patch("app.api.documents.extract_text_with_pages")
     def test_upload_admin_can_upload_to_others_kb(
         self, mock_extract, mock_split, mock_embeddings, mock_add, client, admin_headers, db_session
     ):
         """测试管理员可以上传到他人的知识库"""
         from app.models.knowledge_base import KnowledgeBase
 
-        mock_extract.return_value = "内容"
-        mock_split.return_value = ["切片"]
+        mock_extract.return_value = [("内容", 1)]
+        mock_split.return_value = [
+            {"text": "切片", "title_path": "", "char_offset": 0},
+        ]
         mock_embeddings.return_value = [[0.1] * 768]
         mock_add.return_value = 1
 
@@ -441,3 +448,43 @@ class TestDeleteDocument:
         res = client.delete("/api/documents/1")
 
         assert res.status_code == 401
+
+
+class TestUploadDocumentMetadata:
+    """上传文档的元数据增强测试"""
+
+    @patch("app.api.documents.add_documents")
+    @patch("app.api.documents.get_embeddings")
+    @patch("app.api.documents.extract_text_with_pages")
+    def test_upload_passes_metadata_to_vector_store(
+        self, mock_extract, mock_embeddings, mock_add,
+        client, user_headers, db_session
+    ):
+        """上传文档时应将增强元数据传递给 ChromaDB"""
+        from app.models.knowledge_base import KnowledgeBase
+
+        mock_extract.return_value = [("文件内容。", 1)]
+        mock_embeddings.return_value = [[0.1] * 768]
+        mock_add.return_value = 1
+
+        kb = KnowledgeBase(name="测试", description="测试", owner_id=1)
+        db_session.add(kb)
+        db_session.commit()
+
+        import io
+        res = client.post(
+            f"/api/documents/upload/{kb.id}",
+            files={"file": ("test.txt", io.BytesIO(b"content"), "text/plain")},
+            headers=user_headers,
+        )
+
+        assert res.status_code == 200
+        # 验证 add_documents 被调用时带有增强元数据
+        call_kwargs = mock_add.call_args
+        metadatas = call_kwargs[1].get("metadatas")
+        if metadatas is None and len(call_kwargs[0]) > 3:
+            metadatas = call_kwargs[0][3]
+        assert metadatas is not None
+        meta = metadatas[0]
+        assert "source" in meta
+        assert "page" in meta
