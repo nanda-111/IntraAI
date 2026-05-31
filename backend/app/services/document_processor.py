@@ -293,9 +293,7 @@ def _build_title_path(text: str, char_offset: int, headers: list[tuple[int, str]
     return " > ".join(title for _, title in applicable)
 
 
-def _split_by_structure(
-    text: str, chunk_size: int = 500, overlap: int = 50
-) -> list[dict]:
+def _split_by_structure(text: str, chunk_size: int = 500, overlap: int = 50) -> list[dict]:
     """
     结构感知递归切分：按标题→段落→句子逐级切割。
 
@@ -312,11 +310,13 @@ def _split_by_structure(
         for chunk in plain_chunks:
             idx = text.find(chunk, offset)
             actual_offset = idx if idx >= 0 else offset
-            result.append({
-                "text": chunk,
-                "title_path": "",
-                "char_offset": actual_offset,
-            })
+            result.append(
+                {
+                    "text": chunk,
+                    "title_path": "",
+                    "char_offset": actual_offset,
+                }
+            )
             offset = actual_offset + len(chunk)
         return result
 
@@ -344,11 +344,13 @@ def _split_by_structure(
             idx = section_text.find(chunk)
             actual_offset = section_offset + (idx if idx >= 0 else 0)
             title_path = _build_title_path(text, actual_offset, headers)
-            result.append({
-                "text": chunk,
-                "title_path": title_path,
-                "char_offset": actual_offset,
-            })
+            result.append(
+                {
+                    "text": chunk,
+                    "title_path": title_path,
+                    "char_offset": actual_offset,
+                }
+            )
 
     return result
 
@@ -481,12 +483,14 @@ def split_document(
         for chunk in plain_chunks:
             idx = text.find(chunk, offset)
             actual_offset = idx if idx >= 0 else offset
-            result.append({
-                "text": chunk,
-                "title_path": "",
-                "char_offset": actual_offset,
-                "page": 1,
-            })
+            result.append(
+                {
+                    "text": chunk,
+                    "title_path": "",
+                    "char_offset": actual_offset,
+                    "page": 1,
+                }
+            )
             offset = actual_offset + len(chunk)
         return result
 

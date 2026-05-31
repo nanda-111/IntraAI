@@ -457,8 +457,7 @@ class TestUploadDocumentMetadata:
     @patch("app.api.documents.get_embeddings")
     @patch("app.api.documents.extract_text_with_pages")
     def test_upload_passes_metadata_to_vector_store(
-        self, mock_extract, mock_embeddings, mock_add,
-        client, user_headers, db_session
+        self, mock_extract, mock_embeddings, mock_add, client, user_headers, db_session
     ):
         """上传文档时应将增强元数据传递给 ChromaDB"""
         from app.models.knowledge_base import KnowledgeBase
@@ -472,6 +471,7 @@ class TestUploadDocumentMetadata:
         db_session.commit()
 
         import io
+
         res = client.post(
             f"/api/documents/upload/{kb.id}",
             files={"file": ("test.txt", io.BytesIO(b"content"), "text/plain")},

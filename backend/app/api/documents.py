@@ -146,9 +146,7 @@ async def upload_document(
     pages = extract_text_with_pages(filepath, ext)
 
     # 步骤 2：智能切分（自动选择策略，按页处理保留页码）
-    all_chunks_meta = split_document(
-        "", file_type=ext, chunk_size=500, overlap=50, pages=pages
-    )
+    all_chunks_meta = split_document("", file_type=ext, chunk_size=500, overlap=50, pages=pages)
 
     chunk_count = 0
     if all_chunks_meta:
@@ -164,13 +162,15 @@ async def upload_document(
         # 步骤 4：构建增强元数据并存入 ChromaDB
         metadatas = []
         for c in all_chunks_meta:
-            metadatas.append({
-                "source": file.filename,
-                "page": c.get("page", 1),
-                "title_path": c.get("title_path", ""),
-                "char_offset": c.get("char_offset", 0),
-                "file_type": ext,
-            })
+            metadatas.append(
+                {
+                    "source": file.filename,
+                    "page": c.get("page", 1),
+                    "title_path": c.get("title_path", ""),
+                    "char_offset": c.get("char_offset", 0),
+                    "file_type": ext,
+                }
+            )
         chunk_count = add_documents(kb_id, chunks, all_embeddings, metadatas)
 
     # 【异常处理说明】
