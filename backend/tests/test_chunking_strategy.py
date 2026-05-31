@@ -147,3 +147,42 @@ class TestDetectHeaders:
         text = "普通段落一。\n\n普通段落二。"
         headers = _detect_headers(text)
         assert headers == []
+
+
+class TestBuildTitlePath:
+    """_build_title_path 函数测试"""
+
+    def test_single_header(self):
+        """单个标题应返回自身"""
+        from app.services.document_processor import _build_title_path
+
+        headers = [(0, "第一章 总则")]
+        text = "第一章 总则\n\n内容。"
+        path = _build_title_path(text, 10, headers)
+        assert path == "第一章 总则"
+
+    def test_nested_headers(self):
+        """嵌套标题应返回层级路径"""
+        from app.services.document_processor import _build_title_path
+
+        headers = [(0, "第二章 薪酬"), (15, "2.1 基本工资")]
+        text = "第二章 薪酬\n\n2.1 基本工资\n\n内容。"
+        path = _build_title_path(text, 25, headers)
+        assert "第二章 薪酬" in path
+        assert "2.1 基本工资" in path
+
+    def test_content_before_any_header(self):
+        """第一个标题之前的内容，路径为空字符串"""
+        from app.services.document_processor import _build_title_path
+
+        headers = [(10, "第一章 标题")]
+        text = "前言内容。\n\n第一章 标题"
+        path = _build_title_path(text, 2, headers)
+        assert path == ""
+
+    def test_no_headers(self):
+        """无标题时返回空字符串"""
+        from app.services.document_processor import _build_title_path
+
+        path = _build_title_path("普通内容。", 0, [])
+        assert path == ""

@@ -266,3 +266,26 @@ def _detect_headers(text: str) -> list[tuple[int, str]]:
         if _is_header_line(line):
             headers.append((match.start(), line.strip()))
     return headers
+
+
+def _build_title_path(text: str, char_offset: int, headers: list[tuple[int, str]]) -> str:
+    """
+    根据字符偏移位置，构建当前位置的标题层级路径。
+
+    参数：
+        text: 完整文本
+        char_offset: 当前 chunk 在原文中的字符偏移
+        headers: _detect_headers 返回的 [(偏移, 标题文本), ...]
+
+    返回：
+        标题层级路径，如 "第二章 薪酬 > 2.1 基本工资"
+    """
+    if not headers:
+        return ""
+
+    # 找到 offset 之前（含）的所有标题
+    applicable = [(off, title) for off, title in headers if off <= char_offset]
+    if not applicable:
+        return ""
+
+    return " > ".join(title for _, title in applicable)
