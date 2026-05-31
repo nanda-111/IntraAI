@@ -186,3 +186,53 @@ class TestBuildTitlePath:
 
         path = _build_title_path("普通内容。", 0, [])
         assert path == ""
+
+
+class TestSplitByStructure:
+    """_split_by_structure 函数测试"""
+
+    def test_splits_at_header_boundary(self):
+        """应在标题处分割"""
+        from app.services.document_processor import _split_by_structure
+
+        text = "第一章 内容一。\n\n第二章 内容二。"
+        chunks = _split_by_structure(text, chunk_size=100)
+
+        assert len(chunks) == 2
+        assert "第一章" in chunks[0]["text"]
+        assert "第二章" in chunks[1]["text"]
+
+    def test_returns_metadata(self):
+        """每个 chunk 应包含 text、title_path、char_offset"""
+        from app.services.document_processor import _split_by_structure
+
+        text = "# 标题\n\n段落内容。"
+        chunks = _split_by_structure(text, chunk_size=100)
+
+        assert len(chunks) >= 1
+        chunk = chunks[0]
+        assert "text" in chunk
+        assert "title_path" in chunk
+        assert "char_offset" in chunk
+
+    def test_long_section_splits_by_paragraph(self):
+        """标题下的长段落应继续按段落/句子切分"""
+        from app.services.document_processor import _split_by_structure
+
+        text = "第一章\n\n" + "很长的内容。" * 50
+        chunks = _split_by_structure(text, chunk_size=50)
+
+        assert len(chunks) > 1
+        for chunk in chunks:
+            assert len(chunk["text"]) <= 50
+
+    def test_no_headers_falls_back(self):
+        """无标题时退化为普通段落切分"""
+        from app.services.document_processor import _split_by_structure
+
+        text = "段落一。\n\n段落二。\n\n段落三。"
+        chunks = _split_by_structure(text, chunk_size=100)
+
+        assert len(chunks) == 3
+        for chunk in chunks:
+            assert chunk["title_path"] == ""

@@ -289,3 +289,62 @@ def _build_title_path(text: str, char_offset: int, headers: list[tuple[int, str]
         return ""
 
     return " > ".join(title for _, title in applicable)
+
+
+def _split_by_structure(
+    text: str, chunk_size: int = 500, overlap: int = 50
+) -> list[dict]:
+    """
+    结构感知递归切分：按标题→段落→句子逐级切割。
+
+    返回：
+        [{"text": str, "title_path": str, "char_offset": int}, ...]
+    """
+    headers = _detect_headers(text)
+
+    if not headers:
+        # 无标题，退化为普通切分
+        plain_chunks = split_text(text, chunk_size=chunk_size, overlap=overlap)
+        result = []
+        offset = 0
+        for chunk in plain_chunks:
+            idx = text.find(chunk, offset)
+            actual_offset = idx if idx >= 0 else offset
+            result.append({
+                "text": chunk,
+                "title_path": "",
+                "char_offset": actual_offset,
+            })
+            offset = actual_offset + len(chunk)
+        return result
+
+    # 按标题分割文本为 sections
+    sections = []
+    for i, (offset, title) in enumerate(headers):
+        end = headers[i + 1][0] if i + 1 < len(headers) else len(text)
+        section_text = text[offset:end].strip()
+        if section_text:
+            sections.append((offset, title, section_text))
+
+    # 处理标题之前的内容（前言）
+    first_header_offset = headers[0][0]
+    if first_header_offset > 0:
+        preamble = text[:first_header_offset].strip()
+        if preamble:
+            sections.insert(0, (0, "", preamble))
+
+    # 对每个 section 进行段落/句子级切分
+    result = []
+    for section_offset, _title, section_text in sections:
+        sub_chunks = split_text(section_text, chunk_size=chunk_size, overlap=overlap)
+        for chunk in sub_chunks:
+            idx = section_text.find(chunk)
+            actual_offset = section_offset + (idx if idx >= 0 else 0)
+            title_path = _build_title_path(text, actual_offset, headers)
+            result.append({
+                "text": chunk,
+                "title_path": title_path,
+                "char_offset": actual_offset,
+            })
+
+    return result
