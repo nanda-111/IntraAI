@@ -81,3 +81,69 @@ class TestExtractTextWithPages:
 
         with pytest.raises(ValueError, match="不支持"):
             extract_text_with_pages("test.xyz", "xyz")
+
+
+class TestDetectHeaders:
+    """_detect_header 和 _is_header_line 函数测试"""
+
+    def test_chinese_chapter_header(self):
+        """检测中文章节标题"""
+        from app.services.document_processor import _is_header_line
+
+        assert _is_header_line("第一章 总则") is True
+        assert _is_header_line("第二章 薪酬制度") is True
+        assert _is_header_line("第三节 绩效考核") is True
+
+    def test_numbered_header(self):
+        """检测数字编号标题"""
+        from app.services.document_processor import _is_header_line
+
+        assert _is_header_line("1. 概述") is True
+        assert _is_header_line("2.3 薪资结构") is True
+        assert _is_header_line("3.1.2 细则") is True
+
+    def test_markdown_header(self):
+        """检测 Markdown 标题"""
+        from app.services.document_processor import _is_header_line
+
+        assert _is_header_line("# 一级标题") is True
+        assert _is_header_line("## 二级标题") is True
+        assert _is_header_line("### 三级标题") is True
+
+    def test_non_header_text(self):
+        """普通文本不应被识别为标题"""
+        from app.services.document_processor import _is_header_line
+
+        assert _is_header_line("这是一段普通内容。") is False
+        assert _is_header_line("员工应按时上下班。") is False
+        assert _is_header_line("") is False
+
+    def test_detect_headers_in_text(self):
+        """从文本中提取所有标题及其位置"""
+        from app.services.document_processor import _detect_headers
+
+        text = "第一章 总则\n\n这是总则内容。\n\n第二章 制度\n\n制度内容。"
+        headers = _detect_headers(text)
+
+        assert len(headers) == 2
+        assert headers[0][1] == "第一章 总则"
+        assert headers[1][1] == "第二章 制度"
+
+    def test_detect_headers_returns_offset(self):
+        """标题检测应返回在原文中的字符偏移"""
+        from app.services.document_processor import _detect_headers
+
+        text = "前言内容。\n\n第一章 标题"
+        headers = _detect_headers(text)
+
+        assert len(headers) == 1
+        offset = headers[0][0]
+        assert text[offset : offset + 4] == "第一章 "
+
+    def test_no_headers(self):
+        """无标题文本应返回空列表"""
+        from app.services.document_processor import _detect_headers
+
+        text = "普通段落一。\n\n普通段落二。"
+        headers = _detect_headers(text)
+        assert headers == []

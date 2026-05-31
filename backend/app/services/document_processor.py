@@ -235,3 +235,34 @@ def _extract_tail(text: str, max_len: int) -> str:
         if idx >= 0:
             return tail[idx + 1 :]
     return tail
+
+
+# 标题检测正则
+_HEADER_PATTERNS = [
+    re.compile(r"^第[一二三四五六七八九十百千万\d]+[章节篇部条]"),  # 第一章、第二节
+    re.compile(r"^\d+(?:\.\d+)*[.\s]"),  # 1. / 2.3 / 3.1.2
+    re.compile(r"^#{1,6}\s"),  # Markdown 标题
+]
+
+
+def _is_header_line(line: str) -> bool:
+    """判断一行文本是否是标题。"""
+    stripped = line.strip()
+    if not stripped or len(stripped) > 80:
+        return False
+    return any(pat.match(stripped) for pat in _HEADER_PATTERNS)
+
+
+def _detect_headers(text: str) -> list[tuple[int, str]]:
+    """
+    检测文本中所有标题及其字符偏移位置。
+
+    返回：
+        [(偏移位置, 标题文本), ...]
+    """
+    headers = []
+    for match in re.finditer(r"[^\n]+", text):
+        line = match.group()
+        if _is_header_line(line):
+            headers.append((match.start(), line.strip()))
+    return headers
