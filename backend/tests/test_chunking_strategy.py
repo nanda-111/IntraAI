@@ -383,7 +383,7 @@ class TestSplitDocument:
 
         def fake_embed(texts):
             result = []
-            for i, t in enumerate(texts):
+            for i in range(len(texts)):
                 if i < len(texts) - 1:
                     result.append([1.0] + [0.0] * 767)
                 else:

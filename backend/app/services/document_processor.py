@@ -377,6 +377,7 @@ def _split_by_semantics(
 
     # 延迟导入：仅语义切分需要 numpy 和 embedding 服务
     import numpy as np
+
     from app.services.embedding import get_embeddings
 
     # 计算每个句子的 embedding
