@@ -237,6 +237,19 @@ class TestSplitByStructure:
         for chunk in chunks:
             assert chunk["title_path"] == ""
 
+    def test_preamble_before_first_header(self):
+        """标题之前的前言内容应正确处理"""
+        from app.services.document_processor import _split_by_structure
+
+        text = "前言内容在此。\n\n第一章 正式内容。"
+        chunks = _split_by_structure(text, chunk_size=100)
+
+        assert len(chunks) >= 2
+        # 前言的 title_path 应为空
+        preamble_chunks = [c for c in chunks if "前言" in c["text"]]
+        assert len(preamble_chunks) == 1
+        assert preamble_chunks[0]["title_path"] == ""
+
 
 class TestSplitBySemantics:
     """_split_by_semantics 函数测试"""
@@ -362,3 +375,103 @@ class TestSplitDocument:
 
         result = split_document("", file_type="txt", chunk_size=100)
         assert result == []
+
+    @patch("app.services.document_processor.get_embeddings")
+    def test_long_text_without_headers_uses_semantic(self, mock_embeddings):
+        """长文本无标题应触发语义切分"""
+        from app.services.document_processor import _SHORT_DOC_THRESHOLD, split_document
+
+        def fake_embed(texts):
+            result = []
+            for i, t in enumerate(texts):
+                if i < len(texts) - 1:
+                    result.append([1.0] + [0.0] * 767)
+                else:
+                    result.append([0.0, 1.0] + [0.0] * 766)
+            return result
+
+        mock_embeddings.side_effect = fake_embed
+
+        # 构造超过阈值的长文本，无标题（每段8字，150段=1200字 > 1000）
+        text = "这是第一段内容。" * 150
+        assert len(text) > _SHORT_DOC_THRESHOLD
+        result = split_document(text, file_type="txt", chunk_size=200)
+
+        assert len(result) >= 1
+        for chunk in result:
+            assert chunk["page"] == 1
+        mock_embeddings.assert_called_once()
+
+    def test_split_pages_with_empty_page(self):
+        """空页面应被跳过"""
+        from app.services.document_processor import split_document
+
+        pages = [("", 1), ("第二页内容。", 2)]
+        result = split_document("", file_type="pdf", chunk_size=100, pages=pages)
+
+        # 空页应被跳过，只有第二页的内容
+        assert all(c["page"] == 2 for c in result)
+
+    def test_split_pages_with_headers_in_page(self):
+        """页面内有标题应使用结构切分"""
+        from app.services.document_processor import split_document
+
+        pages = [("# 标题\n\n内容。", 1)]
+        result = split_document("", file_type="pdf", chunk_size=100, pages=pages)
+
+        assert len(result) >= 1
+        assert result[0]["page"] == 1
+
+
+class TestSplitBySentenceEdgeCases:
+    """_split_by_sentence 边界测试"""
+
+    def test_empty_sentences_fallback(self):
+        """空段落按字符兜底切割"""
+        from app.services.document_processor import _split_by_sentence
+
+        result = _split_by_sentence("", chunk_size=5)
+        assert result == []
+
+    def test_long_single_sentence_with_punctuation(self):
+        """带标点的超长单句应按标点切割后处理"""
+        from app.services.document_processor import _split_by_sentence
+
+        # 超长单句带标点，会被拆分成多个句子
+        text = "这是一个很长的句子。" * 20
+        result = _split_by_sentence(text, chunk_size=10)
+
+        assert len(result) > 1
+        for chunk in result:
+            assert len(chunk) <= 10
+
+
+class TestSplitBySemanticsEdgeCases:
+    """_split_by_semantics 边界测试"""
+
+    @patch("app.services.document_processor.get_embeddings")
+    def test_single_sentence_returns_single_chunk(self, mock_embeddings):
+        """单句文本返回单个 chunk（不调用 embedding）"""
+        from app.services.document_processor import _split_by_semantics
+
+        chunks = _split_by_semantics("一句完整的话。", chunk_size=200)
+        assert len(chunks) == 1
+        assert chunks[0]["text"] == "一句完整的话。"
+        mock_embeddings.assert_not_called()
+
+    @patch("app.services.document_processor.get_embeddings")
+    def test_chunk_exceeds_size_falls_back(self, mock_embeddings):
+        """语义分组超长时应退化为普通切分"""
+        from app.services.document_processor import _split_by_semantics
+
+        # 所有句子相似（不会在语义边界切分），但合并后超长
+        mock_embeddings.return_value = [[1.0] + [0.0] * 768] * 10
+
+        sentences = ["这是很长的句子内容。"] * 10
+        text = "".join(sentences)
+        chunks = _split_by_semantics(text, chunk_size=50)
+
+        # 应被切分成多个 chunk
+        assert len(chunks) > 1
+        for chunk in chunks:
+            assert len(chunk["text"]) <= 50
