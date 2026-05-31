@@ -19,6 +19,38 @@ from docx import (
 )
 
 
+def extract_text_with_pages(filepath: str, file_type: str) -> list[tuple[str, int]]:
+    """
+    提取文本并追踪每段文本的页码。
+
+    返回：
+        [(文本段落, 页码), ...] 列表。页码从 1 开始。
+        非 PDF 文件所有文本归为第 1 页。
+    """
+    if file_type == "pdf":
+        return _extract_pdf_with_pages(filepath)
+    elif file_type == "docx":
+        text = _extract_docx(filepath)
+        return [(text, 1)] if text.strip() else []
+    elif file_type in ("txt", "md"):
+        text = _extract_text_file(filepath)
+        return [(text, 1)] if text.strip() else []
+    else:
+        raise ValueError(f"不支持的文件类型: {file_type}")
+
+
+def _extract_pdf_with_pages(filepath: str) -> list[tuple[str, int]]:
+    """提取 PDF 文本，保留页码信息。"""
+    doc = fitz.open(filepath)
+    pages = []
+    for i, page in enumerate(doc):
+        text = page.get_text().strip()
+        if text:
+            pages.append((text, i + 1))
+    doc.close()
+    return pages
+
+
 def extract_text(filepath: str, file_type: str) -> str:
     """
     根据文件类型提取文本内容。
