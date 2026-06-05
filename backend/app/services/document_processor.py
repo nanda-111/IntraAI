@@ -1,22 +1,9 @@
-"""
-文档解析与文本切片服务
-
-功能：
-  - 从 PDF/Word/TXT/Markdown 文件中提取纯文本
-  - 将长文本按段落和句子边界切分为多个小片段（chunk）
-
-这是 RAG（检索增强生成）系统的核心步骤：
-  1. 文档上传 → 提取文本 → 切分为小片段
-  2. 每个小片段通过 Embedding 模型转化为向量
-  3. 用户提问时，检索最相关的片段，交给大模型生成回答
-"""
+"""文档解析与文本切片服务。支持 PDF/DOCX/TXT/MD，提供多种分片策略。"""
 
 import re
 
-import fitz  # PyMuPDF — 用于解析 PDF 文件（需安装：pip install PyMuPDF）
-from docx import (
-    Document as DocxDocument,  # python-docx — 用于解析 .docx 文件（需安装：pip install python-docx）
-)
+import fitz  # PyMuPDF
+from docx import Document as DocxDocument
 
 
 def extract_text_with_pages(filepath: str, file_type: str) -> list[tuple[str, int]]:
@@ -29,14 +16,13 @@ def extract_text_with_pages(filepath: str, file_type: str) -> list[tuple[str, in
     """
     if file_type == "pdf":
         return _extract_pdf_with_pages(filepath)
-    elif file_type == "docx":
+    if file_type == "docx":
         text = _extract_docx(filepath)
         return [(text, 1)] if text.strip() else []
-    elif file_type in ("txt", "md"):
+    if file_type in ("txt", "md"):
         text = _extract_text_file(filepath)
         return [(text, 1)] if text.strip() else []
-    else:
-        raise ValueError(f"不支持的文件类型: {file_type}")
+    raise ValueError(f"不支持的文件类型: {file_type}")
 
 
 def _extract_pdf_with_pages(filepath: str) -> list[tuple[str, int]]:
@@ -66,12 +52,11 @@ def extract_text(filepath: str, file_type: str) -> str:
     """
     if file_type == "pdf":
         return _extract_pdf(filepath)
-    elif file_type == "docx":
+    if file_type == "docx":
         return _extract_docx(filepath)
-    elif file_type in ("txt", "md"):
+    if file_type in ("txt", "md"):
         return _extract_text_file(filepath)
-    else:
-        raise ValueError(f"不支持的文件类型: {file_type}")
+    raise ValueError(f"不支持的文件类型: {file_type}")
 
 
 def _extract_pdf(filepath: str) -> str:
@@ -270,17 +255,11 @@ def _detect_headers(text: str) -> list[tuple[int, str]]:
     return headers
 
 
-def _build_title_path(text: str, char_offset: int, headers: list[tuple[int, str]]) -> str:
+def _build_title_path(char_offset: int, headers: list[tuple[int, str]]) -> str:
     """
     根据字符偏移位置，构建当前位置的标题层级路径。
 
-    参数：
-        text: 完整文本
-        char_offset: 当前 chunk 在原文中的字符偏移
-        headers: _detect_headers 返回的 [(偏移, 标题文本), ...]
-
-    返回：
-        标题层级路径，如 "第二章 薪酬 > 2.1 基本工资"
+    返回：标题层级路径，如 "第二章 薪酬 > 2.1 基本工资"
     """
     if not headers:
         return ""
@@ -343,7 +322,7 @@ def _split_by_structure(text: str, chunk_size: int = 500, overlap: int = 50) -> 
         for chunk in sub_chunks:
             idx = section_text.find(chunk)
             actual_offset = section_offset + (idx if idx >= 0 else 0)
-            title_path = _build_title_path(text, actual_offset, headers)
+            title_path = _build_title_path(actual_offset, headers)
             result.append(
                 {
                     "text": chunk,
@@ -439,7 +418,6 @@ _SHORT_DOC_THRESHOLD = 1000
 
 def split_document(
     text: str,
-    file_type: str = "txt",
     chunk_size: int = 500,
     overlap: int = 50,
     pages: list[tuple[str, int]] | None = None,
@@ -449,18 +427,8 @@ def split_document(
 
     策略选择逻辑：
       1. 有标题结构 → 结构感知切分
-      2. 无标题 + 短文档（< 1000字）→ 普通段落/句子切分
+      2. 无标题 + 短文档（< 1000字）→ 普通切分
       3. 无标题 + 长文档 → 语义切分
-
-    参数：
-        text: 完整文本（当传入 pages 时可为空字符串）
-        file_type: 文件类型
-        chunk_size: chunk 最大字符数
-        overlap: 重叠字符数
-        pages: PDF 页面数据 [(页文本, 页码), ...]，为 None 时从 text 切分
-
-    返回：
-        [{"text": str, "title_path": str, "char_offset": int, "page": int}, ...]
     """
     if pages:
         return _split_pages(pages, chunk_size=chunk_size, overlap=overlap)

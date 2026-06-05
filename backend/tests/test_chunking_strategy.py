@@ -157,8 +157,7 @@ class TestBuildTitlePath:
         from app.services.document_processor import _build_title_path
 
         headers = [(0, "第一章 总则")]
-        text = "第一章 总则\n\n内容。"
-        path = _build_title_path(text, 10, headers)
+        path = _build_title_path(10, headers)
         assert path == "第一章 总则"
 
     def test_nested_headers(self):
@@ -166,8 +165,7 @@ class TestBuildTitlePath:
         from app.services.document_processor import _build_title_path
 
         headers = [(0, "第二章 薪酬"), (15, "2.1 基本工资")]
-        text = "第二章 薪酬\n\n2.1 基本工资\n\n内容。"
-        path = _build_title_path(text, 25, headers)
+        path = _build_title_path(25, headers)
         assert "第二章 薪酬" in path
         assert "2.1 基本工资" in path
 
@@ -176,15 +174,14 @@ class TestBuildTitlePath:
         from app.services.document_processor import _build_title_path
 
         headers = [(10, "第一章 标题")]
-        text = "前言内容。\n\n第一章 标题"
-        path = _build_title_path(text, 2, headers)
+        path = _build_title_path(2, headers)
         assert path == ""
 
     def test_no_headers(self):
         """无标题时返回空字符串"""
         from app.services.document_processor import _build_title_path
 
-        path = _build_title_path("普通内容。", 0, [])
+        path = _build_title_path(0, [])
         assert path == ""
 
 
@@ -328,7 +325,7 @@ class TestSplitDocument:
         from app.services.document_processor import split_document
 
         text = "段落一。\n\n段落二。"
-        result = split_document(text, file_type="txt", chunk_size=100)
+        result = split_document(text, chunk_size=100)
 
         assert isinstance(result, list)
         assert len(result) >= 1
@@ -343,7 +340,7 @@ class TestSplitDocument:
         from app.services.document_processor import split_document
 
         text = "# 第一章\n\n内容一。\n\n# 第二章\n\n内容二。"
-        result = split_document(text, file_type="md", chunk_size=100)
+        result = split_document(text, chunk_size=100)
 
         title_paths = [c["title_path"] for c in result]
         assert any("第一章" in p for p in title_paths)
@@ -353,7 +350,7 @@ class TestSplitDocument:
         from app.services.document_processor import split_document
 
         text = "这是一段短文本。"
-        result = split_document(text, file_type="txt", chunk_size=500)
+        result = split_document(text, chunk_size=500)
 
         assert len(result) == 1
         assert result[0]["text"] == "这是一段短文本。"
@@ -363,7 +360,7 @@ class TestSplitDocument:
         from app.services.document_processor import split_document
 
         pages = [("第一页内容。", 1), ("第二页内容。", 2)]
-        result = split_document("", file_type="pdf", chunk_size=100, pages=pages)
+        result = split_document("", chunk_size=100, pages=pages)
 
         pages_in_result = [c["page"] for c in result]
         assert 1 in pages_in_result
@@ -373,7 +370,7 @@ class TestSplitDocument:
         """空文本返回空列表"""
         from app.services.document_processor import split_document
 
-        result = split_document("", file_type="txt", chunk_size=100)
+        result = split_document("", chunk_size=100)
         assert result == []
 
     @patch("app.services.embedding.get_embeddings")
@@ -395,7 +392,7 @@ class TestSplitDocument:
         # 构造超过阈值的长文本，无标题（每段8字，150段=1200字 > 1000）
         text = "这是第一段内容。" * 150
         assert len(text) > _SHORT_DOC_THRESHOLD
-        result = split_document(text, file_type="txt", chunk_size=200)
+        result = split_document(text, chunk_size=200)
 
         assert len(result) >= 1
         for chunk in result:
@@ -407,7 +404,7 @@ class TestSplitDocument:
         from app.services.document_processor import split_document
 
         pages = [("", 1), ("第二页内容。", 2)]
-        result = split_document("", file_type="pdf", chunk_size=100, pages=pages)
+        result = split_document("", chunk_size=100, pages=pages)
 
         # 空页应被跳过，只有第二页的内容
         assert all(c["page"] == 2 for c in result)
@@ -417,7 +414,7 @@ class TestSplitDocument:
         from app.services.document_processor import split_document
 
         pages = [("# 标题\n\n内容。", 1)]
-        result = split_document("", file_type="pdf", chunk_size=100, pages=pages)
+        result = split_document("", chunk_size=100, pages=pages)
 
         assert len(result) >= 1
         assert result[0]["page"] == 1

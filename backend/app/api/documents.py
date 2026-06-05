@@ -146,7 +146,7 @@ async def upload_document(
     pages = extract_text_with_pages(filepath, ext)
 
     # 步骤 2：智能切分（自动选择策略，按页处理保留页码）
-    all_chunks_meta = split_document("", file_type=ext, chunk_size=500, overlap=50, pages=pages)
+    all_chunks_meta = split_document("", chunk_size=500, overlap=50, pages=pages)
 
     chunk_count = 0
     if all_chunks_meta:

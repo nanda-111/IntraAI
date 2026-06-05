@@ -1,34 +1,4 @@
-"""
-知识库 CRUD API 路由
-
-本模块实现知识库的增删改查（Create, Read, Update, Delete）接口。
-
-【CRUD 设计思路】
-  - Create（POST /api/knowledge-bases/）：创建新的知识库，owner_id 自动绑定当前用户。
-  - Read（GET /api/knowledge-bases/ 和 GET /api/knowledge-bases/{kb_id}）：
-    列表查询支持权限过滤（管理员看全部，普通用户只看自己的）；
-    单个查询包含权限校验。
-  - Update（PUT /api/knowledge-bases/{kb_id}）：更新知识库名称和描述，
-    仅所有者和管理员可操作。
-  - Delete（DELETE /api/knowledge-bases/{kb_id}）：删除知识库，同样需要权限校验。
-
-【权限控制逻辑（为什么区分管理员和普通用户）】
-  - 普通用户只能操作自己创建的知识库（owner_id == current_user.id），
-    这是"数据隔离"原则——每个用户只能看到和修改自己的数据。
-  - 管理员（is_admin = True）可以查看和操作所有知识库，
-    用于系统管理、内容审核、协助排查问题等场景。
-  - 权限检查在每个路由中独立进行，而不是通过依赖注入统一处理，
-    因为不同操作的权限粒度可能不同（例如未来可能有"协作者"角色）。
-
-【HTTP 状态码的选择（404 vs 403）】
-  - 404 Not Found：资源不存在。当 kb_id 对应的知识库在数据库中找不到时返回。
-  - 403 Forbidden：已认证但无权限。当用户已登录（通过 JWT 认证），
-    但尝试操作不属于自己的知识库时返回。
-  - 返回 403 而非 404 的安全考量：
-    如果对无权访问的资源也返回 404，攻击者可以通过遍历 ID 来探测资源是否存在。
-    返回 403 虽然暴露了"资源存在"这一信息，但在大多数业务场景中，
-    隐藏资源存在性的开销（复杂度）大于收益。
-"""
+"""知识库 CRUD API 路由。"""
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -39,9 +9,6 @@ from app.models.knowledge_base import KnowledgeBase
 from app.models.user import User
 from app.schemas.knowledge_base import KBCreate, KBOut, KBUpdate
 
-# 创建路由实例
-# prefix：所有路由的 URL 前缀，统一管理知识库相关的接口路径
-# tags：用于 Swagger 文档分组，方便前端开发者在 /docs 页面中按模块查看接口
 router = APIRouter(prefix="/api/knowledge-bases", tags=["知识库"])
 
 

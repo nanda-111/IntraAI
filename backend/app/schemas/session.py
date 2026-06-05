@@ -8,7 +8,6 @@ from pydantic import BaseModel
 class SessionCreate(BaseModel):
     """创建会话的请求体（无字段，直接创建空会话）"""
 
-    pass
 
 
 class SessionOut(BaseModel):
