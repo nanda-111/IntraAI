@@ -151,7 +151,7 @@ def chat(
     if data.mode == "agent":
         from app.services.langchain_agent import run_agent as agent_run
 
-        answer = agent_run(data.question, history)
+        answer = agent_run(data.question, history, kb_id=data.kb_id or 1)
     elif data.kb_id:
         answer = ask_with_rag(data.question, data.kb_id, history=history, summary=summary)
     elif history or summary:
@@ -199,7 +199,7 @@ def chat_stream(
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    agen = agent_stream(data.question, history)
+                    agen = agent_stream(data.question, history, kb_id=data.kb_id or 1)
                     while True:
                         try:
                             chunk = loop.run_until_complete(agen.__anext__())
@@ -248,6 +248,5 @@ def chat_stream(
                 pass
         except Exception:
             yield "data: [ERROR]\n\n"
-            raise
 
     return StreamingResponse(generate(), media_type="text/event-stream")

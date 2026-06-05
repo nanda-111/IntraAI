@@ -120,7 +120,7 @@ class TestChatEndpoint:
             )
             assert res.status_code == 200
             assert res.json()["answer"] == "Agent 回答"
-            mock_agent_module.run_agent.assert_called_once_with("问题", None)
+            mock_agent_module.run_agent.assert_called_once_with("问题", None, kb_id=1)
         finally:
             del sys.modules["app.services.langchain_agent"]
 
@@ -602,3 +602,247 @@ class TestMaybeCompress:
             assert f"问题{i}" not in remaining_questions
         for i in range(15, 20):
             assert f"问题{i}" in remaining_questions
+
+
+# ============================================================
+# 补充：覆盖 chat.py 未测试的分支
+# ============================================================
+class TestChatHistoryBranch:
+    """覆盖 elif history or summary: 分支（无 kb_id）"""
+
+    @patch("app.api.chat.chat_completion")
+    def test_chat_with_session_history_no_kb(self, mock_chat, client, user_headers, db_session):
+        """有会话历史但无 kb_id，走 history/summary 分支"""
+        from app.models.conversation import Conversation
+        from app.models.session import Session
+
+        mock_chat.return_value = ("", "历史回答")
+
+        session = Session(user_id=1, title="测试")
+        db_session.add(session)
+        db_session.commit()
+        db_session.refresh(session)
+
+        conv = Conversation(
+            user_id=1,
+            session_id=session.id,
+            question="之前的问题",
+            answer="之前的回答",
+        )
+        db_session.add(conv)
+        db_session.commit()
+
+        res = client.post(
+            "/api/chat/",
+            json={"question": "后续问题", "session_id": session.id},
+            headers=user_headers,
+        )
+
+        assert res.status_code == 200
+        assert res.json()["answer"] == "历史回答"
+        # 验证 chat_completion 被调用时 messages 包含历史
+        call_args = mock_chat.call_args[0][0]
+        assert len(call_args) == 3  # history(2) + current(1)
+        assert call_args[0]["role"] == "user"
+        assert call_args[0]["content"] == "之前的问题"
+
+    @patch("app.api.chat.chat_completion")
+    def test_chat_with_summary_no_kb(self, mock_chat, client, user_headers, db_session):
+        """有摘要但无 kb_id，走 summary 分支"""
+        from app.models.session import Session
+
+        mock_chat.return_value = ("", "摘要回答")
+
+        session = Session(user_id=1, title="测试", summary="之前的摘要")
+        db_session.add(session)
+        db_session.commit()
+        db_session.refresh(session)
+
+        res = client.post(
+            "/api/chat/",
+            json={"question": "新问题", "session_id": session.id},
+            headers=user_headers,
+        )
+
+        assert res.status_code == 200
+        assert res.json()["answer"] == "摘要回答"
+        call_args = mock_chat.call_args[0][0]
+        # 第一条是摘要系统消息
+        assert "摘要" in call_args[0]["content"]
+
+
+class TestChatStreamHistoryBranch:
+    """覆盖流式对话的 elif history or summary: 分支"""
+
+    @patch("app.api.chat.generate_title")
+    @patch("app.services.llm.chat_completion_stream")
+    def test_chat_stream_with_history_no_kb(
+        self, mock_stream, mock_title, client, user_headers, db_session
+    ):
+        """流式对话：有历史但无 kb_id"""
+        from app.models.conversation import Conversation
+        from app.models.session import Session
+
+        mock_stream.return_value = iter([{"type": "answer", "content": "流式历史回答"}])
+        mock_title.return_value = "标题"
+
+        session = Session(user_id=1, title="测试")
+        db_session.add(session)
+        db_session.commit()
+        db_session.refresh(session)
+
+        conv = Conversation(
+            user_id=1,
+            session_id=session.id,
+            question="旧问题",
+            answer="旧回答",
+        )
+        db_session.add(conv)
+        db_session.commit()
+
+        res = client.post(
+            "/api/chat/stream",
+            json={"question": "新问题", "session_id": session.id},
+            headers=user_headers,
+        )
+
+        assert res.status_code == 200
+        chunks = _parse_sse(res.text)
+        contents = [c["content"] for c in chunks]
+        assert "流式历史回答" in contents
+
+    @patch("app.api.chat.generate_title")
+    @patch("app.services.llm.chat_completion_stream")
+    def test_chat_stream_with_summary_no_kb(
+        self, mock_stream, mock_title, client, user_headers, db_session
+    ):
+        """流式对话：有摘要但无 kb_id"""
+        from app.models.session import Session
+
+        mock_stream.return_value = iter([{"type": "answer", "content": "摘要流式"}])
+        mock_title.return_value = "标题"
+
+        session = Session(user_id=1, title="测试", summary="旧摘要")
+        db_session.add(session)
+        db_session.commit()
+        db_session.refresh(session)
+
+        res = client.post(
+            "/api/chat/stream",
+            json={"question": "问题", "session_id": session.id},
+            headers=user_headers,
+        )
+
+        assert res.status_code == 200
+        chunks = _parse_sse(res.text)
+        contents = [c["content"] for c in chunks]
+        assert "摘要流式" in contents
+
+
+class TestChatStreamAgentMode:
+    """覆盖流式 Agent 模式"""
+
+    def test_chat_stream_agent_mode(self, client, user_headers):
+        """流式 Agent 模式对话"""
+
+        async def _mock_stream(question, history=None, kb_id=1):
+            yield {"type": "answer", "content": "Agent流式"}
+
+        mock_agent_module = MagicMock()
+        mock_agent_module.run_agent_stream = _mock_stream
+        sys.modules["app.services.langchain_agent"] = mock_agent_module
+        try:
+            res = client.post(
+                "/api/chat/stream",
+                json={"question": "问题", "mode": "agent"},
+                headers=user_headers,
+            )
+            assert res.status_code == 200
+            chunks = _parse_sse(res.text)
+            contents = [c["content"] for c in chunks]
+            assert "Agent流式" in contents
+        finally:
+            del sys.modules["app.services.langchain_agent"]
+
+    def test_chat_stream_agent_with_session(self, client, user_headers, db_session):
+        """流式 Agent 模式 + 会话历史"""
+        from app.models.session import Session
+
+        async def _mock_stream(question, history=None, kb_id=1):
+            yield {"type": "answer", "content": "Agent会话流式"}
+
+        mock_agent_module = MagicMock()
+        mock_agent_module.run_agent_stream = _mock_stream
+        sys.modules["app.services.langchain_agent"] = mock_agent_module
+        try:
+            session = Session(user_id=1, title="测试")
+            db_session.add(session)
+            db_session.commit()
+            db_session.refresh(session)
+
+            res = client.post(
+                "/api/chat/stream",
+                json={"question": "问题", "mode": "agent", "session_id": session.id},
+                headers=user_headers,
+            )
+            assert res.status_code == 200
+            chunks = _parse_sse(res.text)
+            contents = [c["content"] for c in chunks]
+            assert "Agent会话流式" in contents
+        finally:
+            del sys.modules["app.services.langchain_agent"]
+
+
+class TestChatStreamError:
+    """覆盖流式对话的异常处理"""
+
+    def test_chat_stream_error_yields_error_event(self, client, user_headers):
+        """流式对话中异常时返回 [ERROR] 事件"""
+
+        class _FailingStream:
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                raise RuntimeError("LLM failed")
+
+        with patch("app.services.llm.chat_completion_stream", return_value=_FailingStream()):
+            res = client.post(
+                "/api/chat/stream",
+                json={"question": "问题"},
+                headers=user_headers,
+            )
+
+        assert res.status_code == 200
+        assert "[ERROR]" in res.text
+
+
+class TestChatPostChat:
+    """覆盖 _post_chat 中的标题生成和压缩触发"""
+
+    @patch("app.api.chat._maybe_compress")
+    @patch("app.api.chat.generate_title")
+    @patch("app.api.chat.chat_completion")
+    def test_post_chat_generates_title_and_triggers_compress(
+        self, mock_chat, mock_title, mock_compress, client, user_headers, db_session
+    ):
+        """对话后触发标题生成和压缩检查"""
+        from app.models.session import Session
+
+        mock_chat.return_value = ("", "回答")
+        mock_title.return_value = "新标题"
+
+        session = Session(user_id=1, title="新对话")
+        db_session.add(session)
+        db_session.commit()
+        db_session.refresh(session)
+
+        res = client.post(
+            "/api/chat/",
+            json={"question": "你好", "session_id": session.id},
+            headers=user_headers,
+        )
+
+        assert res.status_code == 200
+        mock_title.assert_called_once()
+        mock_compress.assert_called_once_with(session.id, db_session)

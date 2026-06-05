@@ -14,14 +14,15 @@ _ddg_search = DuckDuckGoSearchRun()
 
 
 @tool
-def rag_search(query: str) -> str:
+def rag_search(query: str, kb_id: int = 1) -> str:
     """当用户询问与知识库中的文档、资料、规章制度相关的问题时，使用此工具搜索知识库。
-    输入应该是用户的原始问题，工具会自动向量化并在知识库中搜索最相关的内容。"""
+    输入应该是用户的原始问题，工具会自动向量化并在知识库中搜索最相关的内容。
+    kb_id 是知识库 ID，默认为 1。"""
     try:
         embeddings = get_embeddings([query])
         if not embeddings:
             return "向量化失败，无法搜索知识库。"
-        results = vector_search(kb_id=1, query_embedding=embeddings[0], top_k=5)
+        results = vector_search(kb_id=kb_id, query_embedding=embeddings[0], top_k=5)
         if not results:
             return "知识库中没有找到相关内容。"
         parts = []

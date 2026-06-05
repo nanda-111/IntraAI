@@ -54,14 +54,6 @@ from app.services.langchain_agent import (  # noqa: E402
 )
 
 
-@pytest.fixture(autouse=True)
-def reset_agent_cache():
-    """每个测试前重置 Agent 缓存"""
-    _agent_module._agent_cache = None
-    yield
-    _agent_module._agent_cache = None
-
-
 class TestConvertHistory:
     """_convert_history 函数测试"""
 
@@ -138,32 +130,30 @@ class TestGetAgent:
     """_get_agent 函数测试"""
 
     def test_get_agent_creates_agent(self):
-        """测试首次调用会创建 Agent"""
+        """测试调用会创建 Agent"""
         mock_agent = MagicMock()
         mock_create = MagicMock(return_value=mock_agent)
         mock_llm = MagicMock()
 
         with patch.object(_agent_module, "create_agent", mock_create):
             with patch.object(_agent_module, "get_mimo_llm", mock_llm):
-                result = _agent_module._get_agent()
+                result = _agent_module._get_agent(kb_id=1)
 
                 assert result is mock_agent
                 mock_llm.assert_called_once_with(streaming=True)
                 mock_create.assert_called_once()
 
-    def test_get_agent_uses_cache(self):
-        """测试 Agent 缓存机制 — 只创建一次"""
-        mock_agent = MagicMock()
-        mock_create = MagicMock(return_value=mock_agent)
+    def test_get_agent_creates_new_each_call(self):
+        """测试每次调用都创建新的 Agent（支持不同 kb_id）"""
+        mock_create = MagicMock(return_value=MagicMock())
         mock_llm = MagicMock()
 
         with patch.object(_agent_module, "create_agent", mock_create):
             with patch.object(_agent_module, "get_mimo_llm", mock_llm):
-                agent1 = _agent_module._get_agent()
-                agent2 = _agent_module._get_agent()
+                _agent_module._get_agent(kb_id=1)
+                _agent_module._get_agent(kb_id=2)
 
-                assert agent1 is agent2
-                mock_create.assert_called_once()
+                assert mock_create.call_count == 2
 
     def test_get_agent_passes_system_prompt(self):
         """测试创建 Agent 时传入 system_prompt"""
@@ -172,7 +162,7 @@ class TestGetAgent:
 
         with patch.object(_agent_module, "create_agent", mock_create):
             with patch.object(_agent_module, "get_mimo_llm", mock_llm):
-                _agent_module._get_agent()
+                _agent_module._get_agent(kb_id=1)
 
                 call_kwargs = mock_create.call_args.kwargs
                 assert call_kwargs["system_prompt"] == AGENT_SYSTEM_PROMPT
@@ -184,7 +174,7 @@ class TestGetAgent:
 
         with patch.object(_agent_module, "create_agent", mock_create):
             with patch.object(_agent_module, "get_mimo_llm", mock_llm):
-                _agent_module._get_agent()
+                _agent_module._get_agent(kb_id=1)
 
                 call_kwargs = mock_create.call_args.kwargs
                 tools = call_kwargs["tools"]
@@ -237,7 +227,6 @@ class TestRunAgent:
             result = _agent_module.run_agent("新问题", history=history)
 
             assert result == "回答"
-            # 验证 invoke 时 messages 包含历史 + 新问题
             call_args = mock_agent.invoke.call_args
             messages = call_args[0][0]["messages"]
             assert len(messages) == 3
@@ -256,6 +245,17 @@ class TestRunAgent:
             call_args = mock_agent.invoke.call_args
             messages = call_args[0][0]["messages"]
             assert len(messages) == 1
+
+    def test_run_agent_with_kb_id(self):
+        """测试传入 kb_id 参数"""
+        mock_agent = MagicMock()
+        mock_msg = MagicMock()
+        mock_msg.content = "回答"
+        mock_agent.invoke.return_value = {"messages": [mock_msg]}
+
+        with patch.object(_agent_module, "_get_agent", return_value=mock_agent) as mock_get:
+            _agent_module.run_agent("问题", kb_id=5)
+            mock_get.assert_called_once_with(5)
 
     def test_run_agent_invoke_error(self):
         """测试 Agent 调用出错时抛出异常"""
