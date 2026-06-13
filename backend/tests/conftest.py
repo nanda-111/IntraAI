@@ -178,9 +178,26 @@ def mock_vector_store(monkeypatch):
         ("测试文档内容", {"source": "test.pdf"}),
     ]
 
+    mock_hybrid_results = [
+        ("测试文档内容", {"source": "test.pdf"}, 0.9, 0.8),
+    ]
+
     with patch("app.services.vector_store.search", return_value=mock_results):
         with patch("app.services.vector_store.add_documents", return_value=2):
-            yield mock_results
+            with patch("app.services.vector_store.hybrid_search", return_value=mock_hybrid_results):
+                yield mock_results
+
+
+@pytest.fixture
+def mock_reranker(monkeypatch):
+    """Mock 重排序服务"""
+    from unittest.mock import patch
+
+    def _mock_rerank(question, candidates, top_k=5):
+        return [(text, meta, 0.95) for text, meta in candidates[:top_k]]
+
+    with patch("app.services.reranker.rerank", side_effect=_mock_rerank):
+        yield
 
 
 @pytest.fixture

@@ -1,6 +1,8 @@
-"""ChromaDB 向量存储服务。"""
+"""ChromaDB 向量存储 + BM25 混合检索服务。"""
 
 import chromadb
+import jieba
+from rank_bm25 import BM25Okapi
 
 from app.core.config import settings
 
@@ -56,7 +58,7 @@ def delete_collection(kb_id: int):
 
 
 def search(kb_id: int, query_embedding: list[float], top_k: int = 5) -> list[tuple[str, dict]]:
-    """在知识库中检索最相关的文档切片，返回 [(文本, 元数据), ...]。"""
+    """纯向量检索（保留用于向后兼容）。"""
     collection = get_collection(kb_id)
 
     if collection.count() == 0:
@@ -75,3 +77,99 @@ def search(kb_id: int, query_embedding: list[float], top_k: int = 5) -> list[tup
         (doc, meta if meta else {})
         for doc, meta in zip(docs, metas or [{}] * len(docs), strict=False)
     ]
+
+
+def _tokenize_chinese(text: str) -> list[str]:
+    """中文分词（jieba），去停用词。"""
+    # jieba 精确模式分词
+    tokens = jieba.lcut(text)
+    # 过滤空白和单字符（停用词简化处理）
+    return [t for t in tokens if len(t.strip()) > 0]
+
+
+def hybrid_search(
+    kb_id: int,
+    query: str,
+    query_embedding: list[float],
+    top_k: int = 50,
+) -> list[tuple[str, dict, float, float]]:
+    """混合检索：向量相似度 + BM25 关键词匹配，返回候选集。
+
+    返回 [(text, metadata, vector_score, bm25_score), ...]，
+    按 vector_score + bm25_score 综合排序，最多 top_k 条。
+    """
+    collection = get_collection(kb_id)
+    count = collection.count()
+
+    if count == 0:
+        return []
+
+    # ---------- 1. 向量检索 ----------
+    vec_k = min(top_k, count)
+    vec_results = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=vec_k,
+        include=["documents", "metadatas", "distances"],
+    )
+
+    vec_docs = vec_results["documents"][0] if vec_results["documents"] else []
+    vec_metas = vec_results["metadatas"][0] if vec_results.get("metadatas") else []
+    vec_dists = vec_results["distances"][0] if vec_results.get("distances") else []
+
+    # ChromaDB cosine distance → similarity
+    vec_scores = [1.0 - d for d in vec_dists]
+
+    # ---------- 2. BM25 关键词检索 ----------
+    all_docs = collection.get(include=["documents", "metadatas"])
+    corpus_texts = all_docs["documents"] or []
+    corpus_metas = all_docs["metadatas"] or []
+
+    corpus_tokens = [_tokenize_chinese(t) for t in corpus_texts]
+    query_tokens = _tokenize_chinese(query)
+
+    bm25 = BM25Okapi(corpus_tokens)
+    bm25_raw_scores = bm25.get_scores(query_tokens)
+
+    # 归一化 BM25 分数到 [0, 1]
+    max_bm25 = float(bm25_raw_scores.max()) if len(bm25_raw_scores) > 0 else 1.0
+    if max_bm25 > 0:
+        bm25_norm = (bm25_raw_scores / max_bm25).tolist()
+    else:
+        bm25_norm = [0.0] * len(bm25_raw_scores)
+
+    # 取 BM25 top_k
+    bm25_indices = bm25_raw_scores.argsort()[-top_k:][::-1]
+
+    # ---------- 3. 合并去重 ----------
+    # text → {meta, vec_score, bm25_score}
+    merged: dict[str, dict] = {}
+
+    for i, text in enumerate(vec_docs):
+        merged[text] = {
+            "meta": vec_metas[i] if i < len(vec_metas) else {},
+            "vec_score": vec_scores[i] if i < len(vec_scores) else 0.0,
+            "bm25_score": 0.0,
+        }
+
+    for idx in bm25_indices:
+        idx = int(idx)
+        text = corpus_texts[idx]
+        meta = corpus_metas[idx] if idx < len(corpus_metas) else {}
+        bm25_score = bm25_norm[idx]
+
+        if text in merged:
+            merged[text]["bm25_score"] = max(merged[text]["bm25_score"], bm25_score)
+        else:
+            merged[text] = {
+                "meta": meta,
+                "vec_score": 0.0,
+                "bm25_score": bm25_score,
+            }
+
+    # ---------- 4. 排序输出 ----------
+    results = [
+        (text, info["meta"], info["vec_score"], info["bm25_score"]) for text, info in merged.items()
+    ]
+    results.sort(key=lambda x: x[2] + x[3], reverse=True)
+
+    return results[:top_k]

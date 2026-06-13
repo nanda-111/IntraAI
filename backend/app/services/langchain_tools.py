@@ -7,8 +7,7 @@ from langchain_core.tools import tool
 from sqlalchemy import text
 
 from app.core.database import SessionLocal
-from app.services.embedding import get_embeddings
-from app.services.vector_store import search as vector_search
+from app.services.rag import retrieve_and_rerank
 
 _ddg_search = DuckDuckGoSearchRun()
 
@@ -19,17 +18,14 @@ def rag_search(query: str, kb_id: int = 1) -> str:
     输入应该是用户的原始问题，工具会自动向量化并在知识库中搜索最相关的内容。
     kb_id 是知识库 ID，默认为 1。"""
     try:
-        embeddings = get_embeddings([query])
-        if not embeddings:
-            return "向量化失败，无法搜索知识库。"
-        results = vector_search(kb_id=kb_id, query_embedding=embeddings[0], top_k=5)
+        results = retrieve_and_rerank(query, kb_id, candidates=50, top_k=5)
         if not results:
             return "知识库中没有找到相关内容。"
         parts = []
-        for text, meta in results:
+        for text, meta, score in results:
             source = meta.get("source", "")
             if source:
-                parts.append(f"[来源: {source}]\n{text}")
+                parts.append(f"[来源: {source}] (相关度: {score:.2f})\n{text}")
             else:
                 parts.append(text)
         return "\n\n---\n\n".join(parts)

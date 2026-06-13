@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "mimo-v2-pro"
     UPLOAD_DIR: str = "./uploads"
     CHROMA_DIR: str = "./chroma_data"
+    RERANK_MODEL: str = "BAAI/bge-reranker-base"
 
     @field_validator("SECRET_KEY")
     @classmethod

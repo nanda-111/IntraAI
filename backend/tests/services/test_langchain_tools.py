@@ -30,44 +30,32 @@ from app.services.langchain_tools import db_query, rag_search, web_search  # noq
 class TestRagSearchTool:
     """rag_search 工具测试"""
 
-    @patch("app.services.langchain_tools.vector_search")
-    @patch("app.services.langchain_tools.get_embeddings")
-    def test_rag_search_success(self, mock_embeddings, mock_search):
+    @patch("app.services.langchain_tools.retrieve_and_rerank")
+    def test_rag_search_success(self, mock_retrieve):
         """测试知识库搜索成功"""
-        mock_embeddings.return_value = [[0.1] * 768]
-        mock_search.return_value = [
-            ("文档内容", {"source": "test.pdf"}),
+        mock_retrieve.return_value = [
+            ("文档内容", {"source": "test.pdf"}, 0.95),
         ]
 
         result = rag_search.invoke({"query": "测试问题"})
 
         assert "文档内容" in result
         assert "test.pdf" in result
+        assert "0.95" in result
 
-    @patch("app.services.langchain_tools.get_embeddings")
-    def test_rag_search_embedding_failure(self, mock_embeddings):
-        """测试向量化失败"""
-        mock_embeddings.return_value = []
-
-        result = rag_search.invoke({"query": "测试"})
-
-        assert "向量化失败" in result
-
-    @patch("app.services.langchain_tools.vector_search")
-    @patch("app.services.langchain_tools.get_embeddings")
-    def test_rag_search_no_results(self, mock_embeddings, mock_search):
+    @patch("app.services.langchain_tools.retrieve_and_rerank")
+    def test_rag_search_no_results(self, mock_retrieve):
         """测试搜索无结果"""
-        mock_embeddings.return_value = [[0.1] * 768]
-        mock_search.return_value = []
+        mock_retrieve.return_value = []
 
         result = rag_search.invoke({"query": "测试"})
 
         assert "没有找到相关内容" in result
 
-    @patch("app.services.langchain_tools.get_embeddings")
-    def test_rag_search_exception(self, mock_embeddings):
+    @patch("app.services.langchain_tools.retrieve_and_rerank")
+    def test_rag_search_exception(self, mock_retrieve):
         """测试搜索异常"""
-        mock_embeddings.side_effect = Exception("测试异常")
+        mock_retrieve.side_effect = Exception("测试异常")
 
         result = rag_search.invoke({"query": "测试"})
 
