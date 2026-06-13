@@ -42,6 +42,7 @@ describe('ChatMessage', () => {
           content: '回答',
           reasoning: '我在思考',
           reasoning_time: 3,
+          reasoning_done: true,
           streaming: false,
         },
       },
@@ -57,17 +58,36 @@ describe('ChatMessage', () => {
     expect(wrapper.find('.thinking-panel').exists()).toBe(false)
   })
 
-  it('流式中思考面板展开', () => {
+  it('流式中显示思考中指示器', () => {
     const wrapper = mount(ChatMessage, {
       props: {
         message: {
           role: 'assistant',
           content: '',
-          reasoning: '思考中...',
+          reasoning: null,
           streaming: true,
         },
       },
     })
-    expect(wrapper.find('.thinking-content').isVisible()).toBe(true)
+    expect(wrapper.find('.thinking-panel').exists()).toBe(true)
+    expect(wrapper.find('.thinking-spinner').exists()).toBe(true)
+  })
+
+  it('思考完成后显示 reasoning 内容和回答', () => {
+    const wrapper = mount(ChatMessage, {
+      props: {
+        message: {
+          role: 'assistant',
+          content: '这是回答',
+          reasoning: '这是思考过程',
+          reasoning_time: 5,
+          reasoning_done: true,
+          streaming: false,
+        },
+      },
+    })
+    expect(wrapper.find('.thinking-panel').exists()).toBe(true)
+    expect(wrapper.find('.content').exists()).toBe(true)
+    expect(wrapper.find('.content').html()).toContain('这是回答')
   })
 })

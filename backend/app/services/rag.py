@@ -46,9 +46,7 @@ def ask_with_rag(
     ]
 
     if summary:
-        messages.append(
-            {"role": "system", "content": f"以下是对之前对话的摘要：\n{summary}"}
-        )
+        messages.append({"role": "system", "content": f"以下是对之前对话的摘要：\n{summary}"})
 
     if history:
         for h in history:
@@ -76,9 +74,7 @@ def ask_with_rag_stream(
     ]
 
     if summary:
-        messages.append(
-            {"role": "system", "content": f"以下是对之前对话的摘要：\n{summary}"}
-        )
+        messages.append({"role": "system", "content": f"以下是对之前对话的摘要：\n{summary}"})
 
     if history:
         for h in history:

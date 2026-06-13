@@ -1,13 +1,21 @@
 """知识库 CRUD API 路由。"""
 
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import shutil
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func as sql_func
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_admin_user, get_current_user
+from app.core.config import settings
 from app.core.database import get_db
+from app.models.conversation import Conversation
+from app.models.document import Document
 from app.models.knowledge_base import KnowledgeBase
 from app.models.user import User
 from app.schemas.knowledge_base import KBCreate, KBOut, KBUpdate
+from app.services.vector_store import delete_collection
 
 router = APIRouter(prefix="/api/knowledge-bases", tags=["知识库"])
 
@@ -16,7 +24,7 @@ router = APIRouter(prefix="/api/knowledge-bases", tags=["知识库"])
 def create_kb(
     data: KBCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
     """创建知识库
 
@@ -33,24 +41,46 @@ def create_kb(
     kb = KnowledgeBase(name=data.name, description=data.description, owner_id=current_user.id)
     db.add(kb)
     db.commit()
-    db.refresh(kb)  # 刷新以获取数据库自动生成的 id 和 created_at
+    db.refresh(kb)
+    # 创建知识库对应的上传目录
+    os.makedirs(os.path.join(settings.UPLOAD_DIR, str(kb.id)), exist_ok=True)
     return kb
+
+
+@router.post("/cleanup")
+def cleanup_orphan_kbs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user),
+):
+    """清理数据库中已不存在对应文件夹的知识库（仅管理员）"""
+
+    kbs = db.query(KnowledgeBase).all()
+    removed = []
+    for kb in kbs:
+        upload_dir = os.path.join(settings.UPLOAD_DIR, str(kb.id))
+        if not os.path.isdir(upload_dir):
+            # 清理关联数据
+            delete_collection(kb.id)
+            db.query(Conversation).filter(Conversation.kb_id == kb.id).delete()
+            db.query(Document).filter(Document.kb_id == kb.id).delete()
+            db.delete(kb)
+            removed.append(kb.id)
+    db.commit()
+    return {"removed": removed, "count": len(removed)}
 
 
 @router.get("/", response_model=list[KBOut])
 def list_kbs(
+    q: str | None = Query(None, description="按名称搜索"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """获取知识库列表
-
-    权限逻辑：
-    - 管理员：返回所有知识库，用于系统管理和全局视图。
-    - 普通用户：只返回 owner_id 等于自己 ID 的知识库，实现数据隔离。
-    """
-    if current_user.is_admin:
-        return db.query(KnowledgeBase).all()
-    return db.query(KnowledgeBase).filter(KnowledgeBase.owner_id == current_user.id).all()
+    """获取知识库列表（所有用户可查看，支持按名称搜索）"""
+    query = db.query(KnowledgeBase)
+    if q:
+        # 使用 func.lower + like 替代 ilike，兼容 SQLite 和 MySQL
+        query = query.filter(sql_func.lower(KnowledgeBase.name).like(f"%{q.lower()}%"))
+    return query.all()
 
 
 @router.get("/{kb_id}", response_model=KBOut)
@@ -59,17 +89,10 @@ def get_kb(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """获取单个知识库详情
-
-    权限检查：
-    1. 先查询数据库，如果不存在返回 404。
-    2. 再检查当前用户是否有权查看（管理员或所有者），无权则返回 403。
-    """
+    """获取单个知识库详情（所有用户可查看）"""
     kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
     if not kb:
         raise HTTPException(status_code=404, detail="知识库不存在")
-    if not current_user.is_admin and kb.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="无权访问")
     return kb
 
 
@@ -78,20 +101,12 @@ def update_kb(
     kb_id: int,
     data: KBUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
-    """更新知识库信息
-
-    部分更新逻辑：
-    - KBUpdate 中所有字段都是可选的。
-    - 通过 "is not None" 判断用户是否传入了该字段（区别于传入 null）。
-    - 只更新用户明确传入的字段，未传入的字段保持数据库中的原值不变。
-    """
+    """更新知识库信息（仅管理员）"""
     kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
     if not kb:
         raise HTTPException(status_code=404, detail="知识库不存在")
-    if not current_user.is_admin and kb.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="无权修改")
     if data.name is not None:
         kb.name = data.name
     if data.description is not None:
@@ -105,18 +120,31 @@ def update_kb(
 def delete_kb(
     kb_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
-    """删除知识库
-
-    删除操作不返回 KBOut，因为资源已被删除，
-    只返回一个简单的确认消息（HTTP 200 + JSON）。
-    """
+    """删除知识库（仅管理员，级联清理）"""
     kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
     if not kb:
         raise HTTPException(status_code=404, detail="知识库不存在")
-    if not current_user.is_admin and kb.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="无权删除")
+
+    # 1. 删除上传的物理文件
+    docs = db.query(Document).filter(Document.kb_id == kb_id).all()
+    for doc in docs:
+        if os.path.exists(doc.filepath):
+            os.remove(doc.filepath)
+    # 如果知识库对应的上传目录为空，删除目录
+    upload_dir = os.path.join(settings.UPLOAD_DIR, str(kb_id))
+    if os.path.isdir(upload_dir):
+        shutil.rmtree(upload_dir, ignore_errors=True)
+
+    # 2. 删除 ChromaDB 向量集合
+    delete_collection(kb_id)
+
+    # 3. 删除数据库关联记录
+    db.query(Conversation).filter(Conversation.kb_id == kb_id).delete()
+    db.query(Document).filter(Document.kb_id == kb_id).delete()
+
+    # 4. 删除知识库本身
     db.delete(kb)
     db.commit()
     return {"message": "已删除"}

@@ -8,6 +8,11 @@ pytest 全局 fixtures
   - 认证 token 生成
 """
 
+import os
+
+# CI 环境中没有 .env 文件，需要在导入 app 模块之前设置 SECRET_KEY
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci")
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

@@ -19,7 +19,7 @@ import os
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_admin_user, get_current_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.document import Document
@@ -28,7 +28,7 @@ from app.models.user import User
 from app.schemas.document import DocumentOut
 from app.services.document_processor import extract_text_with_pages, split_document
 from app.services.embedding import get_embeddings
-from app.services.vector_store import add_documents, search
+from app.services.vector_store import add_documents, delete_by_source, search
 
 # 创建路由器，所有路由都以 /api/documents 为前缀
 router = APIRouter(prefix="/api/documents", tags=["文档"])
@@ -79,7 +79,7 @@ async def upload_document(
     kb_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
     """
     上传文档到指定知识库，并自动执行处理流水线。
@@ -99,12 +99,7 @@ async def upload_document(
     if not kb:
         raise HTTPException(status_code=404, detail="知识库不存在")
 
-    # 2. 权限检查：只有管理员或知识库所有者能上传文档
-    # 这确保了用户不能向他人的知识库中添加内容
-    if not current_user.is_admin and kb.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="无权操作")
-
-    # 3. 检查文件类型
+    # 2. 检查文件类型
     # 从文件名中提取扩展名并转为小写，确保大小写不敏感的匹配
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
     if ext not in ALLOWED_TYPES:
@@ -212,14 +207,9 @@ def list_documents(
 
     返回指定知识库中的全部文档元数据，用于前端展示文档管理界面。
     """
-    # 先验证知识库是否存在
     kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
     if not kb:
         raise HTTPException(status_code=404, detail="知识库不存在")
-    # 权限检查：管理员可以查看所有，普通用户只能查看自己知识库的文档
-    if not current_user.is_admin and kb.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="无权访问")
-    # 查询该知识库下的所有文档
     return db.query(Document).filter(Document.kb_id == kb_id).all()
 
 
@@ -227,24 +217,25 @@ def list_documents(
 def delete_document(
     doc_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
 ):
     """
-    删除文档（同时删除磁盘上的文件）。
+    删除文档（同时删除磁盘文件和 ChromaDB 向量）。
 
-    执行两步操作：
-      1. 删除本地存储的原始文件
-      2. 删除数据库中的文档记录
+    执行三步操作：
+      1. 删除 ChromaDB 中该文档对应的所有向量切片
+      2. 删除本地存储的原始文件
+      3. 删除数据库中的文档记录
     """
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="文档不存在")
-    # 权限检查：只有管理员或文档上传者可以删除
-    if not current_user.is_admin and doc.uploaded_by != current_user.id:
-        raise HTTPException(status_code=403, detail="无权删除")
-    # 删除本地文件（先检查文件是否存在，避免文件已被手动删除时报错）
+    # 1. 清理 ChromaDB 中的向量数据
+    delete_by_source(doc.kb_id, doc.filename)
+    # 2. 删除磁盘文件
     if os.path.exists(doc.filepath):
         os.remove(doc.filepath)
+    # 3. 删除数据库记录
     db.delete(doc)
     db.commit()
     return {"message": "已删除"}

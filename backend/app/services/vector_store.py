@@ -39,6 +39,22 @@ def add_documents(
     return len(chunks)
 
 
+def delete_by_source(kb_id: int, source: str):
+    """删除知识库中指定来源文件的所有向量切片。"""
+    collection = get_collection(kb_id)
+    if collection.count() == 0:
+        return
+    collection.delete(where={"source": source})
+
+
+def delete_collection(kb_id: int):
+    """删除知识库对应的向量集合。"""
+    try:
+        _client.delete_collection(name=f"kb_{kb_id}")
+    except Exception:
+        pass  # 集合不存在时忽略
+
+
 def search(kb_id: int, query_embedding: list[float], top_k: int = 5) -> list[tuple[str, dict]]:
     """在知识库中检索最相关的文档切片，返回 [(文本, 元数据), ...]。"""
     collection = get_collection(kb_id)

@@ -78,8 +78,11 @@ export const useAuthStore = defineStore('auth', () => {
     // 保存 token 和用户信息到响应式状态
     token.value = res.data.access_token
     user.value = res.data.user
-    // 持久化 token 到 localStorage，刷新页面后可恢复
+    // 持久化到 localStorage，刷新页面后可恢复
     localStorage.setItem('token', token.value)
+    if (res.data.user) {
+      localStorage.setItem('user', JSON.stringify(res.data.user))
+    }
   }
 
   /**
@@ -103,6 +106,7 @@ export const useAuthStore = defineStore('auth', () => {
     // 调用获取用户信息接口（token 由请求拦截器自动携带）
     const res = await getMe()
     user.value = res.data
+    localStorage.setItem('user', JSON.stringify(res.data))
   }
 
   /**
@@ -113,6 +117,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = ''
     user.value = null
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
   }
 
   // 返回所有需要暴露的状态和方法

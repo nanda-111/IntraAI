@@ -44,5 +44,12 @@ chroma_data/
 hf_cache/
 .claude/
 
+# Test coverage
+.coverage
+
+# Frontend build & deps
+frontend/dist/
+node_modules/
+
 # Pip install artifacts (e.g. =0.41b0 from bad pip commands)
 backend/=*

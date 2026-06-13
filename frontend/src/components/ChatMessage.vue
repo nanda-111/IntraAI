@@ -1,6 +1,5 @@
 <template>
   <div :class="['message', message.role]">
-    <!-- AI 头像（仅 assistant 显示） -->
     <div
       v-if="message.role === 'assistant'"
       class="avatar"
@@ -9,7 +8,6 @@
     </div>
 
     <div class="message-body">
-      <!-- 用户消息：纯文本靠右 -->
       <div
         v-if="message.role === 'user'"
         class="user-content"
@@ -17,11 +15,25 @@
         {{ message.content }}
       </div>
 
-      <!-- AI 消息 -->
       <template v-else>
-        <!-- 思考过程折叠面板 -->
+        <!-- 思考中状态：reasoning 为 null 且仍在流式 -->
         <div
-          v-if="message.reasoning"
+          v-if="message.streaming && !hasReasoning"
+          class="thinking-panel"
+        >
+          <div class="thinking-header">
+            <span class="thinking-spinner" />
+            <span class="thinking-label">思考中...</span>
+            <span
+              :ref="el => { if (el) timerEl = el }"
+              class="thinking-elapsed"
+            />
+          </div>
+        </div>
+
+        <!-- 思考完成：有 reasoning 内容 -->
+        <div
+          v-if="hasReasoning"
           class="thinking-panel"
         >
           <div
@@ -30,12 +42,8 @@
           >
             <span class="thinking-arrow">{{ showThinking ? '▾' : '▸' }}</span>
             <span class="thinking-label">
-              已思考 {{ elapsedSeconds }} 秒
+              已思考 {{ message.reasoning_time || 0 }} 秒
             </span>
-            <span
-              v-if="message.streaming"
-              class="thinking-spinner"
-            />
           </div>
           <div
             v-show="showThinking"
@@ -45,8 +53,9 @@
           </div>
         </div>
 
-        <!-- 回答内容：Markdown 渲染 -->
+        <!-- 回答：无 reasoning 且非流式中，或有 reasoning 且已完成 -->
         <div
+          v-if="(!hasReasoning && !message.streaming) || (hasReasoning && message.reasoning_done)"
           class="content"
           v-html="renderedContent"
         />
@@ -58,52 +67,58 @@
 <script setup>
 import { computed, ref, watch, onUnmounted } from 'vue'
 import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
 
 const md = new MarkdownIt()
 
 const props = defineProps({
-  message: Object,
+  message: {
+    type: Object,
+    required: true,
+  },
 })
 
 const showThinking = ref(false)
-const elapsedSeconds = ref(0)
-let timer = null
+let timerEl = null
+let timerInterval = null
+let timerStart = null
 
-// 流式中展开思考面板 + 实时计时，结束后 0.5s 自动收起
+const hasReasoning = computed(() => props.message.reasoning != null)
+
+const renderedContent = computed(() => {
+  if (props.message.role === 'assistant') {
+    const raw = md.render(props.message.content || '')
+    return DOMPurify.sanitize(raw)
+  }
+  return props.message.content
+})
+
+// 用原生 DOM 操作更新计时器，完全绕过 Vue 响应式系统
 watch(
   () => props.message.streaming,
-  (streaming, oldStreaming) => {
+  (streaming) => {
     if (streaming) {
-      showThinking.value = true
-      elapsedSeconds.value = props.message.reasoning_time || 0
-      clearInterval(timer)
-      timer = setInterval(() => {
-        elapsedSeconds.value++
+      timerStart = Date.now()
+      clearInterval(timerInterval)
+      timerInterval = setInterval(() => {
+        if (timerEl) {
+          const sec = Math.round((Date.now() - timerStart) / 1000)
+          timerEl.textContent = ` ${sec}s`
+        }
       }, 1000)
-    } else if (oldStreaming === true) {
-      clearInterval(timer)
-      timer = null
-      elapsedSeconds.value = props.message.reasoning_time || 0
-      setTimeout(() => {
-        showThinking.value = false
-      }, 500)
+    } else {
+      clearInterval(timerInterval)
+      timerInterval = null
     }
   },
   { immediate: true }
 )
 
-onUnmounted(() => clearInterval(timer))
+onUnmounted(() => clearInterval(timerInterval))
 
 function toggleThinking() {
   showThinking.value = !showThinking.value
 }
-
-const renderedContent = computed(() => {
-  if (props.message.role === 'assistant') {
-    return md.render(props.message.content || '')
-  }
-  return props.message.content
-})
 </script>
 
 <style scoped>
@@ -114,7 +129,6 @@ const renderedContent = computed(() => {
   padding: 8px 0;
 }
 
-/* 用户消息靠右，无头像 */
 .message.user {
   justify-content: flex-end;
 }
@@ -129,7 +143,6 @@ const renderedContent = computed(() => {
   word-break: break-word;
 }
 
-/* AI 头像 */
 .avatar {
   width: 36px;
   height: 36px;
@@ -149,7 +162,6 @@ const renderedContent = computed(() => {
   max-width: 70%;
 }
 
-/* 思考过程面板 */
 .thinking-panel {
   margin-bottom: 12px;
   border-left: 2px solid #4D6BFE;
@@ -175,6 +187,11 @@ const renderedContent = computed(() => {
   font-size: 12px;
 }
 
+.thinking-elapsed {
+  font-size: 12px;
+  color: #aaa;
+}
+
 .thinking-spinner {
   width: 12px;
   height: 12px;
@@ -182,6 +199,7 @@ const renderedContent = computed(() => {
   border-top-color: #4D6BFE;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
 }
 
 @keyframes spin {
@@ -198,7 +216,6 @@ const renderedContent = computed(() => {
   word-break: break-word;
 }
 
-/* AI 回答内容 */
 .content {
   font-size: 15px;
   line-height: 1.7;

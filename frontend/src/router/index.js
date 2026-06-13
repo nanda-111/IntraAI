@@ -72,6 +72,19 @@ router.beforeEach((to, from, next) => {
   // 如果目标页面需要登录，但用户没有 token，则跳转到登录页
   if (to.meta.requiresAuth && !token) {
     next('/login')
+  } else if (to.meta.requiresAdmin) {
+    // 管理员页面：检查 localStorage 中缓存的用户信息
+    // 注意：这只是前端体验优化，真正的权限校验在后端 API
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || 'null')
+      if (user?.is_admin) {
+        next()
+      } else {
+        next('/')
+      }
+    } catch {
+      next('/')
+    }
   } else {
     // 放行，继续路由跳转
     next()

@@ -29,11 +29,13 @@ from app.services.rag import ask_with_rag
 router = APIRouter(prefix="/api/chat", tags=["对话"])
 
 
-def _load_session_history(session_id: int, db: DbSession):
+def _load_session_history(session_id: int, db: DbSession, user_id: int | None = None):
     """加载会话的历史上下文和摘要"""
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
+    if user_id and session.user_id != user_id:
+        raise HTTPException(status_code=403, detail="无权访问该会话")
 
     summary = session.summary
 
@@ -145,7 +147,7 @@ def chat(
     history = None
 
     if data.session_id:
-        session, summary, history = _load_session_history(data.session_id, db)
+        session, summary, history = _load_session_history(data.session_id, db, current_user.id)
 
     # Agent 模式
     if data.mode == "agent":
@@ -172,50 +174,41 @@ def chat(
 
 
 @router.post("/stream")
-def chat_stream(
+async def chat_stream(
     data: ChatRequest,
     db: DbSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """流式对话接口（支持多轮上下文）"""
 
-    def generate():
+    async def generate():
         session = None
         summary = None
         history = None
 
         try:
             if data.session_id:
-                session, summary, history = _load_session_history(data.session_id, db)
+                session, summary, history = _load_session_history(
+                    data.session_id, db, current_user.id
+                )
 
             full_answer = ""
 
             if data.mode == "agent":
-                # Agent 流式模式
-                import asyncio
-
                 from app.services.langchain_agent import run_agent_stream as agent_stream
 
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    agen = agent_stream(data.question, history, kb_id=data.kb_id or 1)
-                    while True:
-                        try:
-                            chunk = loop.run_until_complete(agen.__anext__())
-                            full_answer += chunk["content"]
-                            yield f"data: {json.dumps(chunk)}\n\n"
-                        except StopAsyncIteration:
-                            break
-                finally:
-                    loop.close()
+                async for chunk in agent_stream(data.question, history, kb_id=data.kb_id or 1):
+                    if chunk.get("type") == "answer":
+                        full_answer += chunk["content"]
+                    yield f"data: {json.dumps(chunk)}\n\n"
             elif data.kb_id:
                 from app.services.rag import ask_with_rag_stream
 
                 for chunk in ask_with_rag_stream(
                     data.question, data.kb_id, history=history, summary=summary
                 ):
-                    full_answer += chunk["content"]
+                    if chunk.get("type") == "answer":
+                        full_answer += chunk["content"]
                     yield f"data: {json.dumps(chunk)}\n\n"
             elif history or summary:
                 from app.services.llm import chat_completion_stream as llm_stream
@@ -229,13 +222,15 @@ def chat_stream(
                     messages.extend(history)
                 messages.append({"role": "user", "content": data.question})
                 for chunk in llm_stream(messages):
-                    full_answer += chunk["content"]
+                    if chunk.get("type") == "answer":
+                        full_answer += chunk["content"]
                     yield f"data: {json.dumps(chunk)}\n\n"
             else:
                 from app.services.llm import chat_completion_stream as llm_stream
 
                 for chunk in llm_stream([{"role": "user", "content": data.question}]):
-                    full_answer += chunk["content"]
+                    if chunk.get("type") == "answer":
+                        full_answer += chunk["content"]
                     yield f"data: {json.dumps(chunk)}\n\n"
 
             yield "data: [DONE]\n\n"

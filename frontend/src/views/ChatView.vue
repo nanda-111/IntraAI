@@ -1,154 +1,111 @@
 <template>
-  <div class="app-layout">
-    <!-- 深色侧边栏 -->
-    <aside class="sidebar">
-      <div class="sidebar-top">
-        <div class="sidebar-logo">
-          IntraAI
-        </div>
-        <button
-          class="new-chat-btn"
-          @click="handleNewSession"
-        >
-          + 新建对话
-        </button>
-        <div class="session-list">
-          <div
-            v-for="s in sessions"
-            :key="s.id"
-            :class="['session-item', { active: currentSessionId === s.id }]"
-            @click="handleSelectSession(s.id)"
-          >
-            <span class="session-title">{{ s.title }}</span>
-            <button
-              class="delete-btn"
-              @click.stop="handleDeleteSession(s.id)"
-            >
-              X
-            </button>
-          </div>
-          <div
-            v-if="sessions.length === 0"
-            class="empty-hint"
-          >
-            暂无对话
-          </div>
-        </div>
-      </div>
-      <div class="sidebar-bottom">
-        <div class="nav-links">
-          <router-link
-            to="/"
-            class="nav-link active"
-          >
-            对话
-          </router-link>
-          <router-link
-            to="/knowledge"
-            class="nav-link"
-          >
-            知识库
-          </router-link>
-          <router-link
-            v-if="authStore.user?.is_admin"
-            to="/admin"
-            class="nav-link"
-          >
-            管理
-          </router-link>
-        </div>
-        <button
-          class="logout-btn"
-          @click="handleLogout"
-        >
-          退出登录
-        </button>
-      </div>
-    </aside>
-
-    <!-- 主内容区 -->
-    <main class="main-content">
-      <!-- 消息列表 -->
-      <div
-        ref="messagesRef"
-        class="messages"
+  <AppLayout>
+    <template #sidebar-extra>
+      <button
+        class="new-chat-btn"
+        @click="handleNewSession"
       >
+        + 新建对话
+      </button>
+      <div class="session-list">
         <div
-          v-if="messages.length === 0"
-          class="empty-chat"
+          v-for="s in sessions"
+          :key="s.id"
+          :class="['session-item', { active: currentSessionId === s.id }]"
+          @click="handleSelectSession(s.id)"
         >
-          <h2>IntraAI 知识助手</h2>
-          <p>选择知识库后开始提问，或直接对话</p>
-        </div>
-        <ChatMessage
-          v-for="(msg, i) in messages"
-          :key="i"
-          :message="msg"
-        />
-      </div>
-
-      <!-- 输入区 -->
-      <div class="input-section">
-        <!-- 工具栏 -->
-        <div class="toolbar">
-          <a-select
-            v-model:value="selectedModel"
-            :options="modelOptions"
-            size="small"
-            style="width: 160px"
-            :bordered="false"
-          />
-          <a-select
-            v-model:value="selectedKb"
-            placeholder="选择知识库"
-            :options="kbOptions"
-            allow-clear
-            size="small"
-            style="width: 160px"
-          />
-          <div class="stream-toggle">
-            <span>流式</span>
-            <a-switch
-              v-model:checked="useStream"
-              size="small"
-            />
-          </div>
-        </div>
-        <!-- 输入框 -->
-        <div class="input-box">
-          <a-textarea
-            v-model:value="question"
-            placeholder="输入问题..."
-            :auto-size="{ minRows: 1, maxRows: 6 }"
-            :bordered="false"
-            @keydown.enter.exact.prevent="handleSend"
-          />
-          <a-button
-            type="primary"
-            :loading="loading"
-            :disabled="!question.trim()"
-            class="send-btn"
-            @click="handleSend"
+          <span class="session-title">{{ s.title }}</span>
+          <button
+            class="delete-btn"
+            @click.stop="handleDeleteSession(s.id)"
           >
-            发送
-          </a-button>
+            X
+          </button>
+        </div>
+        <div
+          v-if="sessions.length === 0"
+          class="empty-hint"
+        >
+          暂无对话
         </div>
       </div>
-    </main>
-  </div>
+    </template>
+
+    <div
+      ref="messagesRef"
+      class="messages"
+    >
+      <div
+        v-if="messages.length === 0"
+        class="empty-chat"
+      >
+        <h2>IntraAI 知识助手</h2>
+        <p>选择知识库后开始提问，或直接对话</p>
+      </div>
+      <ChatMessage
+        v-for="(msg, i) in messages"
+        :key="i"
+        :message="msg"
+      />
+    </div>
+
+    <div class="input-section">
+      <div class="toolbar">
+        <a-select
+          v-model:value="selectedModel"
+          :options="modelOptions"
+          size="small"
+          style="width: 160px"
+          :bordered="false"
+        />
+        <a-select
+          v-model:value="selectedKb"
+          placeholder="选择知识库"
+          :options="kbOptions"
+          allow-clear
+          size="small"
+          style="width: 160px"
+        />
+        <div class="stream-toggle">
+          <span>流式</span>
+          <a-switch
+            v-model:checked="useStream"
+            size="small"
+          />
+        </div>
+      </div>
+      <div class="input-box">
+        <a-textarea
+          v-model:value="question"
+          placeholder="输入问题..."
+          :auto-size="{ minRows: 1, maxRows: 6 }"
+          :bordered="false"
+          @keydown.enter.exact.prevent="handleSend"
+        />
+        <a-button
+          type="primary"
+          :loading="loading"
+          :disabled="!question.trim()"
+          class="send-btn"
+          @click="handleSend"
+        >
+          发送
+        </a-button>
+      </div>
+    </div>
+  </AppLayout>
 </template>
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import { useAuthStore } from '../stores/auth'
+import AppLayout from '../components/AppLayout.vue'
 import { listKnowledgeBases } from '../api/knowledge'
 import { sendChat, sendChatStream } from '../api/chat'
 import { createSession, listSessions, getSession, deleteSession } from '../api/session'
 import ChatMessage from '../components/ChatMessage.vue'
 
-const router = useRouter()
 const authStore = useAuthStore()
 
 const messages = ref([])
@@ -215,6 +172,13 @@ function handleDeleteSession(sessionId) {
 async function handleSend() {
   if (!question.value.trim() || loading.value) return
 
+  if (!currentSessionId.value) {
+    const res = await createSession()
+    const newSession = res.data
+    sessions.value.unshift(newSession)
+    currentSessionId.value = newSession.id
+  }
+
   const q = question.value.trim()
   question.value = ''
   messages.value.push({ role: 'user', content: q })
@@ -231,15 +195,38 @@ async function handleSend() {
 }
 
 async function handleStreamSend(q) {
+  // reasoning 初始为 null，模板中 null 才表示"还没有思考内容"
+  // 空字符串 '' 表示"有思考过程但内容为空"，不应用于初始状态
   messages.value.push({
     role: 'assistant',
     content: '',
-    reasoning: '',
+    reasoning: null,
     reasoning_time: 0,
+    reasoning_done: false,
     streaming: true,
   })
   const msg = messages.value[messages.value.length - 1]
   let reasoningStartTime = null
+
+  // 双缓冲 + rAF：完全消除 chunk 级别的 Vue 响应式触发
+  let writeBuffer = ''
+  let rafId = null
+
+  function flushBuffer() {
+    if (!writeBuffer) {
+      rafId = null
+      return
+    }
+    // 原子性地将缓冲内容赋值给 reasoning（一次性触发一次 Vue 更新）
+    msg.reasoning = (msg.reasoning || '') + writeBuffer
+    writeBuffer = ''
+    rafId = null
+  }
+
+  function scheduleFlush() {
+    if (rafId) return
+    rafId = requestAnimationFrame(flushBuffer)
+  }
 
   const gen = sendChatStream({
     question: q,
@@ -251,20 +238,47 @@ async function handleStreamSend(q) {
     for (;;) {
       const { value: chunk, done } = await gen.next()
       if (done) break
+
       if (chunk.type === 'reasoning') {
         if (!reasoningStartTime) reasoningStartTime = Date.now()
-        msg.reasoning += chunk.content
+        writeBuffer += chunk.content
+        scheduleFlush()
       } else if (chunk.type === 'answer') {
-        if (reasoningStartTime && !msg.reasoning_time) {
-          msg.reasoning_time = Math.round((Date.now() - reasoningStartTime) / 1000)
+        // 思考阶段结束：先把残余 reasoning 缓冲一次性刷出
+        if (writeBuffer) {
+          msg.reasoning = (msg.reasoning || '') + writeBuffer
+          writeBuffer = ''
+          if (rafId) {
+            cancelAnimationFrame(rafId)
+            rafId = null
+          }
+        }
+        // 标记思考完成 → 模板中 v-if 生效，回答区域开始渲染
+        if (!msg.reasoning_done) {
+          msg.reasoning_done = true
+          if (reasoningStartTime && !msg.reasoning_time) {
+            msg.reasoning_time = Math.round((Date.now() - reasoningStartTime) / 1000)
+          }
         }
         msg.content += chunk.content
       }
-      scrollToBottom()
     }
   } catch {
     message.error('发送失败')
   } finally {
+    // 最终清理：刷出所有残余缓冲
+    if (writeBuffer) {
+      msg.reasoning = (msg.reasoning || '') + writeBuffer
+      writeBuffer = ''
+    }
+    if (rafId) {
+      cancelAnimationFrame(rafId)
+      rafId = null
+    }
+    if (reasoningStartTime && !msg.reasoning_time) {
+      msg.reasoning_time = Math.round((Date.now() - reasoningStartTime) / 1000)
+    }
+    msg.reasoning_done = true
     msg.streaming = false
     loading.value = false
     try { await gen.return() } catch { /* ignore */ }
@@ -296,11 +310,6 @@ function scrollToBottom() {
   }
 }
 
-function handleLogout() {
-  authStore.logout()
-  router.push('/login')
-}
-
 onMounted(async () => {
   await authStore.fetchUser()
   fetchKbs()
@@ -309,37 +318,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.app-layout {
-  display: flex;
-  height: 100vh;
-}
-
-/* ===== 深色侧边栏 ===== */
-.sidebar {
-  width: 260px;
-  background: #1a1a2e;
-  color: #e0e0e0;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-}
-
-.sidebar-top {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 16px;
-}
-
-.sidebar-logo {
-  font-size: 20px;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 16px;
-  padding: 4px 0;
-}
-
 .new-chat-btn {
   width: 100%;
   padding: 10px;
@@ -410,49 +388,6 @@ onMounted(async () => {
   padding: 20px 0;
 }
 
-.sidebar-bottom {
-  padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.nav-links {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 12px;
-}
-
-.nav-link {
-  color: #aaa;
-  text-decoration: none;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.nav-link:hover,
-.nav-link.active {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.logout-btn {
-  width: 100%;
-  padding: 8px;
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #aaa;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.logout-btn:hover {
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
-}
-
-/* ===== 主内容区 ===== */
 .main-content {
   flex: 1;
   display: flex;
@@ -479,7 +414,6 @@ onMounted(async () => {
   margin-bottom: 8px;
 }
 
-/* ===== 输入区 ===== */
 .input-section {
   padding: 0 calc((100% - 720px) / 2) 24px;
 }
