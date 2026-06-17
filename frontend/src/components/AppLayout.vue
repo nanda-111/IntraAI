@@ -3,23 +3,47 @@
     <aside class="sidebar">
       <div class="sidebar-top">
         <div class="sidebar-logo">
-          IntraAI
+          <div class="logo-icon">
+            AI
+          </div>
+          <div class="logo-text">
+            <span class="logo-name">IntraAI</span>
+            <span class="logo-version">v2.5</span>
+          </div>
         </div>
-        <!-- 各页面自定义的侧边栏内容（如 ChatView 的新建按钮和会话列表） -->
         <slot name="sidebar-extra" />
       </div>
       <div class="sidebar-bottom">
-        <div class="nav-links">
+        <nav class="nav-links">
           <router-link
             to="/"
             :class="['nav-link', { active: activeRoute === '/' }]"
           >
+            <svg
+              class="nav-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
             对话
           </router-link>
           <router-link
             to="/knowledge"
             :class="['nav-link', { active: activeRoute === '/knowledge' }]"
           >
+            <svg
+              class="nav-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
             知识库
           </router-link>
           <router-link
@@ -27,15 +51,75 @@
             to="/admin"
             :class="['nav-link', { active: activeRoute === '/admin' }]"
           >
+            <svg
+              class="nav-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+              <rect
+                x="3"
+                y="3"
+                width="7"
+                height="7"
+                rx="1"
+              />
+              <rect
+                x="14"
+                y="3"
+                width="7"
+                height="7"
+                rx="1"
+              />
+              <rect
+                x="3"
+                y="14"
+                width="7"
+                height="7"
+                rx="1"
+              />
+              <rect
+                x="14"
+                y="14"
+                width="7"
+                height="7"
+                rx="1"
+              />
+            </svg>
             管理
           </router-link>
+        </nav>
+        <div class="sidebar-user">
+          <div class="user-avatar">
+            {{ userInitial }}
+          </div>
+          <div class="user-info">
+            <span class="user-name">{{ authStore.user?.username || '用户' }}</span>
+            <span class="user-role">{{ isAdmin ? '管理员' : '成员' }}</span>
+          </div>
+          <button
+            class="logout-btn"
+            title="退出登录"
+            @click="handleLogout"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line
+                x1="21"
+                y1="12"
+                x2="9"
+                y2="12"
+              />
+            </svg>
+          </button>
         </div>
-        <button
-          class="logout-btn"
-          @click="handleLogout"
-        >
-          退出登录
-        </button>
       </div>
     </aside>
 
@@ -51,7 +135,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 defineProps({
-  /** 主内容区的额外 CSS 类名 */
   mainClass: {
     type: String,
     default: 'main-content',
@@ -64,6 +147,10 @@ const authStore = useAuthStore()
 
 const isAdmin = computed(() => authStore.user?.is_admin)
 const activeRoute = computed(() => route.path)
+const userInitial = computed(() => {
+  const name = authStore.user?.username || ''
+  return name.charAt(0).toUpperCase() || 'U'
+})
 
 function handleLogout() {
   authStore.logout()
@@ -75,15 +162,28 @@ function handleLogout() {
 .app-layout {
   display: flex;
   height: 100vh;
+  overflow: hidden;
 }
 
+/* ==================== Sidebar ==================== */
 .sidebar {
   width: 260px;
-  background: #1a1a2e;
-  color: #e0e0e0;
+  background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--sidebar-border);
 }
 
 .sidebar-top {
@@ -91,56 +191,175 @@ function handleLogout() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 16px;
+  padding: 20px 16px;
 }
 
+/* Logo */
 .sidebar-logo {
-  font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding: 0 4px;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--color-primary), #7c5cfc);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.logo-text {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.logo-name {
+  font-size: 18px;
   font-weight: 700;
   color: #fff;
-  margin-bottom: 16px;
-  padding: 4px 0;
+  letter-spacing: -0.3px;
 }
 
+.logo-version {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  font-weight: 500;
+}
+
+/* Bottom section */
 .sidebar-bottom {
-  padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--sidebar-border);
 }
 
+/* Navigation */
 .nav-links {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 12px;
+  gap: 2px;
+  margin-bottom: 16px;
 }
 
 .nav-link {
-  color: #aaa;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--sidebar-text);
   text-decoration: none;
-  padding: 8px 12px;
-  border-radius: 6px;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
   font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
 }
 
-.nav-link:hover,
+.nav-link:hover {
+  background: var(--sidebar-surface-hover);
+  color: var(--sidebar-text-active);
+}
+
 .nav-link.active {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--sidebar-surface-active);
+  color: var(--sidebar-text-active);
+}
+
+.nav-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* User info */
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.sidebar-user:hover {
+  background: var(--sidebar-surface);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sidebar-text-active);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-role {
+  font-size: 11px;
+  color: var(--sidebar-text);
 }
 
 .logout-btn {
-  width: 100%;
-  padding: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #aaa;
-  border-radius: 6px;
+  border: none;
+  color: var(--sidebar-text);
   cursor: pointer;
-  font-size: 13px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.logout-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .logout-btn:hover {
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
+  background: var(--sidebar-surface-hover);
+  color: var(--color-danger);
+}
+
+/* ==================== Main content ==================== */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  overflow: hidden;
+  min-width: 0;
 }
 </style>

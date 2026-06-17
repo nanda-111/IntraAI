@@ -186,6 +186,7 @@ async def upload_document(
         filepath=filepath,
         file_type=ext,
         file_size=len(content),
+        file_mtime=os.path.getmtime(filepath),
         chunk_count=chunk_count,
         kb_id=kb_id,
         uploaded_by=current_user.id,

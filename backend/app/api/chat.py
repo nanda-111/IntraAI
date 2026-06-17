@@ -23,8 +23,10 @@ from app.models.session import Session
 from app.models.usage_log import UsageLog
 from app.models.user import User
 from app.schemas.chat import ChatRequest, ChatResponse
-from app.services.llm import chat_completion, generate_summary, generate_title
+# Import rag first — triggers PyTorch/sentence-transformers loading.
+# Must precede llm (OpenAI SDK) to avoid segfault on Windows.
 from app.services.rag import ask_with_rag
+from app.services.llm import chat_completion, generate_summary, generate_title
 
 router = APIRouter(prefix="/api/chat", tags=["对话"])
 

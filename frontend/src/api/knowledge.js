@@ -59,3 +59,12 @@ export function deleteKnowledgeBase(id) {
 export function cleanupOrphanKnowledgeBases() {
   return api.post('/api/knowledge-bases/cleanup')
 }
+
+/**
+ * 同步 uploads/ 文件夹到知识库（仅管理员）
+ * 扫描 uploads/ 子目录，自动创建/更新/删除知识库和文档
+ * @returns {Promise} Axios 请求 Promise，返回 { created, updated, removed, details }
+ */
+export function syncKnowledgeBases() {
+  return api.post('/api/knowledge-bases/sync')
+}

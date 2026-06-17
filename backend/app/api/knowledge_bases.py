@@ -15,7 +15,9 @@ from app.models.document import Document
 from app.models.knowledge_base import KnowledgeBase
 from app.models.user import User
 from app.schemas.knowledge_base import KBCreate, KBOut, KBUpdate
-from app.services.vector_store import delete_collection
+from app.services.document_processor import extract_text_with_pages, split_document
+from app.services.embedding import get_embeddings
+from app.services.vector_store import add_documents, delete_by_source, delete_collection
 
 router = APIRouter(prefix="/api/knowledge-bases", tags=["知识库"])
 
@@ -148,3 +150,198 @@ def delete_kb(
     db.delete(kb)
     db.commit()
     return {"message": "已删除"}
+
+
+# ==================== 文件夹同步 ====================
+
+ALLOWED_TYPES = {"pdf", "docx", "txt", "md"}
+BATCH_SIZE = 100
+
+
+def _process_file(filepath: str, filename: str, ext: str, kb_id: int, user_id: int, db: Session):
+    """处理单个文件：提取文本 → 切片 → 向量化 → 存入 ChromaDB + 数据库。"""
+    pages = extract_text_with_pages(filepath, ext)
+    if not pages:
+        return 0
+
+    all_chunks_meta = split_document("", chunk_size=500, overlap=50, pages=pages)
+    if not all_chunks_meta:
+        return 0
+
+    chunks = [c["text"] for c in all_chunks_meta]
+
+    all_embeddings = []
+    for i in range(0, len(chunks), BATCH_SIZE):
+        batch = chunks[i : i + BATCH_SIZE]
+        embs = get_embeddings(batch)
+        all_embeddings.extend(embs)
+
+    metadatas = [
+        {
+            "source": filename,
+            "page": c.get("page", 1),
+            "title_path": c.get("title_path", ""),
+            "char_offset": c.get("char_offset", 0),
+            "file_type": ext,
+        }
+        for c in all_chunks_meta
+    ]
+    chunk_count = add_documents(kb_id, chunks, all_embeddings, metadatas)
+
+    file_size = os.path.getsize(filepath)
+    file_mtime = os.path.getmtime(filepath)
+    doc = Document(
+        filename=filename,
+        filepath=filepath,
+        file_type=ext,
+        file_size=file_size,
+        file_mtime=file_mtime,
+        chunk_count=chunk_count,
+        kb_id=kb_id,
+        uploaded_by=user_id,
+    )
+    db.add(doc)
+    db.commit()
+    return chunk_count
+
+
+@router.post("/sync")
+def sync_from_uploads(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user),
+):
+    """扫描 uploads/ 文件夹，自动同步知识库。
+
+    逻辑：
+    1. 遍历 uploads/ 下的子目录（目录名 = 知识库 ID）
+    2. 新目录 → 创建知识库 + 导入所有文件
+    3. 已有知识库 → 对比文件：
+       - 新文件 → 导入
+       - 已修改文件（mtime/size 变化）→ 删除旧向量 + 重新导入
+       - 已删除文件 → 清理 DB 记录 + 向量
+    4. 数据库中有但目录已不存在 → 删除知识库（级联清理）
+    """
+    upload_root = settings.UPLOAD_DIR
+    if not os.path.isdir(upload_root):
+        return {"created": 0, "updated": 0, "removed": 0, "details": []}
+
+    admin = db.query(User).filter(User.is_admin).first()
+    if not admin:
+        raise HTTPException(status_code=500, detail="没有管理员用户")
+    user_id = admin.id
+
+    created = 0
+    updated = 0
+    removed = 0
+    details = []
+
+    # 扫描 uploads/ 下的子目录
+    existing_dirs = set()
+    for entry in os.listdir(upload_root):
+        entry_path = os.path.join(upload_root, entry)
+        if os.path.isdir(entry_path) and entry.isdigit():
+            existing_dirs.add(int(entry))
+
+    # 1. 处理存在的目录
+    for kb_id in sorted(existing_dirs):
+        upload_dir = os.path.join(upload_root, str(kb_id))
+        kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
+
+        # 新知识库：目录存在但数据库没有
+        if not kb:
+            kb = KnowledgeBase(
+                id=kb_id,
+                name=f"知识库 {kb_id}",
+                description=f"从 uploads/{kb_id}/ 自动导入",
+                owner_id=user_id,
+            )
+            db.add(kb)
+            db.commit()
+            db.refresh(kb)
+            created += 1
+            details.append(f"新建知识库 {kb_id}")
+
+        # 收集磁盘上的文件（仅支持的类型）
+        disk_files = {}
+        for fname in os.listdir(upload_dir):
+            fpath = os.path.join(upload_dir, fname)
+            if not os.path.isfile(fpath):
+                continue
+            ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
+            if ext in ALLOWED_TYPES:
+                disk_files[fname] = {
+                    "path": fpath,
+                    "ext": ext,
+                    "mtime": os.path.getmtime(fpath),
+                    "size": os.path.getsize(fpath),
+                }
+
+        # 收集数据库中该知识库的文档记录
+        db_docs = {d.filename: d for d in db.query(Document).filter(Document.kb_id == kb_id).all()}
+
+        disk_names = set(disk_files.keys())
+        db_names = set(db_docs.keys())
+
+        # 新文件：磁盘有但数据库没有
+        for fname in sorted(disk_names - db_names):
+            info = disk_files[fname]
+            try:
+                n = _process_file(info["path"], fname, info["ext"], kb_id, user_id, db)
+                updated += 1
+                details.append(f"[KB {kb_id}] 新增 {fname} ({n} 切片)")
+            except Exception as e:
+                details.append(f"[KB {kb_id}] 新增 {fname} 失败: {e}")
+
+        # 已删除文件：数据库有但磁盘没有
+        for fname in sorted(db_names - disk_names):
+            doc = db_docs[fname]
+            try:
+                delete_by_source(kb_id, fname)
+                db.delete(doc)
+                db.commit()
+                removed += 1
+                details.append(f"[KB {kb_id}] 删除 {fname}")
+            except Exception as e:
+                details.append(f"[KB {kb_id}] 删除 {fname} 失败: {e}")
+
+        # 已修改文件：两边都有，检查 mtime 或 size 是否变化
+        for fname in sorted(disk_names & db_names):
+            info = disk_files[fname]
+            doc = db_docs[fname]
+            mtime_changed = abs(info["mtime"] - (doc.file_mtime or 0)) > 1.0
+            size_changed = info["size"] != doc.file_size
+            if mtime_changed or size_changed:
+                try:
+                    # 删除旧向量
+                    delete_by_source(kb_id, fname)
+                    # 重新处理
+                    n = _process_file(info["path"], fname, info["ext"], kb_id, user_id, db)
+                    # 删除旧 DB 记录（_process_file 已新建）
+                    db.delete(doc)
+                    db.commit()
+                    updated += 1
+                    details.append(f"[KB {kb_id}] 更新 {fname} ({n} 切片)")
+                except Exception as e:
+                    details.append(f"[KB {kb_id}] 更新 {fname} 失败: {e}")
+
+    # 2. 清理：数据库中有但目录已不存在的知识库
+    all_kbs = db.query(KnowledgeBase).all()
+    for kb in all_kbs:
+        if kb.id not in existing_dirs:
+            try:
+                delete_collection(kb.id)
+                db.query(Conversation).filter(Conversation.kb_id == kb.id).delete()
+                db.query(Document).filter(Document.kb_id == kb.id).delete()
+                db.delete(kb)
+                db.commit()
+                removed += 1
+                details.append(f"删除失效知识库 {kb.id}")
+            except Exception as e:
+                details.append(f"删除失效知识库 {kb.id} 失败: {e}")
+
+    return {
+        "created": created,
+        "updated": updated,
+        "removed": removed,
+        "details": details,
+    }

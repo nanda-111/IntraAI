@@ -6,8 +6,10 @@ from collections.abc import AsyncIterator
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app.services.langchain_llm import get_mimo_llm
+# Import tools first — triggers PyTorch/sentence-transformers loading.
+# Must precede langchain_llm (OpenAI SDK) to avoid segfault on Windows.
 from app.services.langchain_tools import db_query, rag_search, web_search
+from app.services.langchain_llm import get_mimo_llm
 
 logger = logging.getLogger(__name__)
 

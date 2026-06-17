@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = "https://token-plan-cn.xiaomimimo.com/v1"
-    OPENAI_MODEL: str = "mimo-v2-pro"
+    OPENAI_MODEL: str = "mimo-v2.5-pro"
     UPLOAD_DIR: str = "./uploads"
     CHROMA_DIR: str = "./chroma_data"
     RERANK_MODEL: str = "BAAI/bge-reranker-base"
