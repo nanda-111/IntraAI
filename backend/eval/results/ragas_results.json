@@ -1,7 +1,8 @@
 {
-  "faithfulness": NaN,
-  "answer_relevancy": NaN,
-  "context_precision": NaN,
-  "context_recall": NaN,
-  "answer_correctness": NaN
+  "answer_relevancy": 0.4268,
+  "faithfulness": null,
+  "context_precision": null,
+  "context_recall": null,
+  "answer_correctness": null,
+  "_note": "MiMo 模型不支持 RAGAS 复杂 JSON 输出，仅 answer_relevancy 指标成功运行"
 }

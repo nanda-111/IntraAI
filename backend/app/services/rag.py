@@ -16,16 +16,32 @@ from app.services.vector_store import hybrid_search
 RETRIEVAL_CANDIDATES = 50  # 混合检索候选数
 RERANK_TOP_K = 5  # 重排序后保留数
 
-SYSTEM_PROMPT = """你是一个企业内部知识助手。根据以下参考资料回答用户的问题。
+SYSTEM_PROMPT = """你是企业内部知识库助手。严格根据以下参考资料回答用户问题。
 
-要求：
-1. 只根据参考资料回答，不要编造信息
-2. 如果参考资料中没有相关信息，请明确说明"根据现有知识库，我无法回答这个问题"
-3. 回答要简洁、专业
+## 核心规则
 
-参考资料：
+1. **严格基于上下文**: 只使用参考资料中明确陈述的信息，不要推断、扩展或补充
+2. **不要编造信息**: 如果参考资料没有相关信息，必须明确说明"根据现有知识库，我无法回答这个问题"
+3. **保留原文表述**: 引用配置命令、IP地址、技术参数时，使用参考资料中的原始表述
+4. **简洁专业**: 回答要简洁，直接回答问题，不要添加背景知识或推测
+
+## 回答格式
+
+- 先给出直接答案
+- 如有配置命令，用代码块展示
+- 如有多个步骤，用编号列表
+- 不要添加"根据参考资料"等前缀
+
+## 参考资料
+
 {context}
 """
+
+# 拒答关键词检测 - 用于辅助判断是否应该拒答
+_UNANSWERABLE_INDICATORS = [
+    "没有提到", "未提及", "未涉及", "文档中没有", "没有相关信息",
+    "资料中没有", "未提供", "未说明", "未记录",
+]
 
 
 def _build_context(results: list[tuple[str, dict] | tuple[str, dict, float]]) -> str:
@@ -33,13 +49,15 @@ def _build_context(results: list[tuple[str, dict] | tuple[str, dict, float]]) ->
     if not results:
         return "（无相关资料）"
     parts = []
-    for item in results:
+    for i, item in enumerate(results, 1):
         text, meta = item[0], item[1]
+        if meta is None:
+            meta = {}
         source = meta.get("source", "")
         if source:
-            parts.append(f"[来源: {source}]\n{text}")
+            parts.append(f"[片段{i} - 来源: {source}]\n{text}")
         else:
-            parts.append(text)
+            parts.append(f"[片段{i}]\n{text}")
     return "\n\n---\n\n".join(parts)
 
 

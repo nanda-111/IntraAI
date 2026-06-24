@@ -1,0 +1,140 @@
+# RAG 评估框架更新日志
+
+## v3.0 (2026-06-18)
+
+### 主要改进
+
+#### 1. 测试数据集重建
+
+**问题**: 原数据集基于 kb_9 的 38 个 chunk 构建，但当前知识库 kb_4 只有 12 个 chunk，索引完全错位。
+
+**解决方案**:
+- 基于 kb_4 的 12 个 chunk（chunk_0 ~ chunk_11）重新标注 `relevant_chunk_ids`
+- 确保索引与当前知识库一致
+
+#### 2. 数据集规模扩充
+
+| 数据集 | 原规模 | 新规模 | 增幅 |
+|--------|--------|--------|------|
+| RETRIEVAL_TEST_SET | 12条 | 40条 | 233% |
+| GENERATION_TEST_SET | 10条 | 25条 | 150% |
+| MULTI_TURN_TEST_SET | 2组 | 5组 | 150% |
+| E2E_TEST_SET | 3条 | 10条 | 233% |
+| ADVERSARIAL_TEST_SET | 无 | 10条 | 新增 |
+| CROSS_KB_TEST_SET | 无 | 8条 | 新增 |
+
+#### 3. 多样性提升
+
+**检索测试类别**:
+- `simple_facts`: 简单事实查询（5条）
+- `ip_address`: IP地址查询（6条）
+- `config_commands`: 配置命令查询（8条）
+- `verification`: 验证/故障排查（8条）
+- `comprehensive`: 综合理解（6条）
+- `edge_cases`: 边界情况（7条）
+
+**难度级别**:
+- `easy`: 简单（11条）
+- `medium`: 中等（16条）
+- `hard`: 困难（13条）
+
+**生成测试类别**:
+- `answerable`: 可回答（12条）
+- `unanswerable`: 不可回答（8条）
+- `partial`: 部分可答（5条）
+
+#### 4. 新增测试维度
+
+**对抗性测试** (ADVERSARIAL_TEST_SET):
+- 测试模型是否会被诱导编造信息
+- 包含10个陷阱问题
+- 检测幻觉（hallucination）行为
+
+**跨知识库测试** (CROSS_KB_TEST_SET):
+- 测试模型能否正确区分不同知识库的内容
+- 覆盖 kb_4（PAP认证）和 kb_1（网络基础、商客套餐）
+- 检测知识库混淆问题
+
+#### 5. 评估脚本改进
+
+**纳入 Reranker**:
+- 默认使用 `retrieve_and_rerank()` 函数
+- 与生产环境保持一致
+- 可通过参数关闭 reranker 进行对比测试
+
+**改进关键词覆盖率计算**:
+- 支持 `key_points` 字段，精确匹配关键要点
+- 改进关键词提取算法，支持中英文混合
+- 支持 IP 地址、技术术语提取
+
+**增加按类别/难度分析**:
+- 检索质量按问题类别统计
+- 检索质量按难度级别统计
+- 生成质量按问题类别统计
+
+**新增报告生成器**:
+- 自动生成 Markdown 格式评估报告
+- 包含汇总表格、详细分析、改进建议
+- 支持失败查询分析
+
+### 文件变更
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `test_dataset.py` | 重写 | 重建数据集，扩充规模 |
+| `run_eval_v2.py` | 更新 | 支持新数据集，纳入reranker，新增Phase 4/5 |
+| `generate_report.py` | 新增 | 报告生成器 |
+| `README.md` | 新增 | 评估框架文档 |
+| `CHANGELOG.md` | 新增 | 更新日志 |
+
+### 评估指标说明
+
+**检索指标**:
+- `Hit Rate@K`: top-K 中是否命中至少一个相关文档
+- `MRR`: 第一个相关文档的倒数排名
+- `Recall@K`: 相关文档被检索到的比例
+- `Precision@K`: 检索结果中相关文档的比例
+- `NDCG@K`: 归一化折损累积增益
+
+**生成指标**:
+- `Faithfulness`: 答案是否基于上下文
+- `Keyword Coverage`: 关键词覆盖率
+- `Refusal Accuracy`: 拒答准确率
+
+**对抗性指标**:
+- `Accuracy`: 正确避免幻觉的比例
+
+**跨知识库指标**:
+- `Accuracy`: 正确区分知识库的比例
+
+### 使用方法
+
+```bash
+# 运行完整评估
+cd F:/IntraAI/backend
+PYTHONIOENCODING=utf-8 python eval/run_eval_v2.py
+
+# 运行 Ragas 评估
+PYTHONIOENCODING=utf-8 python eval/run_ragas.py
+
+# 生成评估报告
+PYTHONIOENCODING=utf-8 python eval/generate_report.py
+```
+
+### 预期效果
+
+1. **评估可信度提升**: 数据集规模扩大，覆盖更多场景
+2. **评估准确性提升**: 索引与知识库一致，reranker 与生产环境一致
+3. **问题诊断能力提升**: 按类别/难度分析，快速定位薄弱环节
+4. **幻觉检测能力**: 对抗性测试检测模型的幻觉行为
+5. **知识库区分能力**: 跨知识库测试检测模型的知识库混淆问题
+
+---
+
+## v2.0 (2026-06-17)
+
+### 初始版本
+
+- 基于 kb_9 的 38 个 chunk 构建测试集
+- 实现检索、生成、端到端三阶段评估
+- 支持 Ragas 框架评估

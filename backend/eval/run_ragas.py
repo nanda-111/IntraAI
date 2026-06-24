@@ -1,4 +1,4 @@
-"""Ragas 框架独立评估脚本 - 使用项目 MiMo LLM。"""
+"""Ragas 框架独立评估脚本 - 使用 DeepSeek LLM。"""
 
 import json
 import os
@@ -14,7 +14,7 @@ from sentence_transformers import SentenceTransformer  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-KB_ID = 9
+KB_ID = 4
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 
 
@@ -40,17 +40,37 @@ def main():
     from datasets import Dataset
     from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
+    from app.core.config import settings
+
     print("=" * 60)
     print("  Ragas 框架评估 (使用 MiMo LLM)")
     print("=" * 60)
 
-    # 配置 Ragas 使用的 LLM（通过 MiMo OpenAI-compatible API）
-    llm = LangchainLLMWrapper(ChatOpenAI(
+    # 配置 Ragas 使用的 LLM（通过项目 MiMo OpenAI-compatible API）
+    # 包装 LLM 强制 n=1，因为 MiMo/DeepSeek 不支持 n>1
+    from langchain_core.messages import BaseMessage
+    from typing import Any
+
+    class ForceN1ChatOpenAI(ChatOpenAI):
+        """强制 n=1 的 ChatOpenAI 包装。"""
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+
+        def generate(self, messages, stop=None, callbacks=None, **kwargs):
+            kwargs["n"] = 1
+            return super().generate(messages, stop=stop, callbacks=callbacks, **kwargs)
+
+        async def agenerate(self, messages, stop=None, callbacks=None, **kwargs):
+            kwargs["n"] = 1
+            return await super().agenerate(messages, stop=stop, callbacks=callbacks, **kwargs)
+
+    llm = LangchainLLMWrapper(ForceN1ChatOpenAI(
         model=settings.OPENAI_MODEL,
         openai_api_key=settings.OPENAI_API_KEY,
         openai_api_base=settings.OPENAI_BASE_URL,
         temperature=0,
-        max_tokens=2048,
+        max_tokens=4096,
+        request_timeout=120,  # 增加超时到120秒
     ))
 
     # 配置 embeddings（使用项目自带的 text2vec 模型包装为 LangChain 兼容）

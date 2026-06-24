@@ -80,11 +80,32 @@ def search(kb_id: int, query_embedding: list[float], top_k: int = 5) -> list[tup
 
 
 def _tokenize_chinese(text: str) -> list[str]:
-    """中文分词（jieba），去停用词。"""
+    """中文分词（jieba），增强版：保留技术术语和命令。"""
+    import re
+
     # jieba 精确模式分词
     tokens = jieba.lcut(text)
-    # 过滤空白和单字符（停用词简化处理）
-    return [t for t in tokens if len(t.strip()) > 0]
+
+    # 保留：2+字符的中文词、英文单词/命令、IP地址、数字
+    result = []
+    for t in tokens:
+        t = t.strip()
+        if not t:
+            continue
+        # 保留中文词（2+字符）
+        if re.match(r'^[一-鿿]{2,}$', t):
+            result.append(t)
+        # 保留英文单词/命令（2+字符）
+        elif re.match(r'^[A-Za-z][A-Za-z0-9_./-]*$', t) and len(t) >= 2:
+            result.append(t.lower())
+        # 保留IP地址
+        elif re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', t):
+            result.append(t)
+        # 保留数字（3+位，如端口号、密码等）
+        elif re.match(r'^\d{3,}$', t):
+            result.append(t)
+
+    return result
 
 
 def hybrid_search(
@@ -167,9 +188,13 @@ def hybrid_search(
             }
 
     # ---------- 4. 排序输出 ----------
+    # 向量权重 0.6，BM25 权重 0.4（向量捕捉语义，BM25 捕捉关键词）
+    VEC_WEIGHT = 0.6
+    BM25_WEIGHT = 0.4
+
     results = [
         (text, info["meta"], info["vec_score"], info["bm25_score"]) for text, info in merged.items()
     ]
-    results.sort(key=lambda x: x[2] + x[3], reverse=True)
+    results.sort(key=lambda x: x[2] * VEC_WEIGHT + x[3] * BM25_WEIGHT, reverse=True)
 
     return results[:top_k]

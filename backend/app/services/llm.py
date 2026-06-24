@@ -7,12 +7,12 @@ from app.core.config import settings
 client = OpenAI(api_key=settings.OPENAI_API_KEY, base_url=settings.OPENAI_BASE_URL)
 
 
-def chat_completion(messages: list[dict], model: str | None = None) -> tuple[str, str]:
+def chat_completion(messages: list[dict], model: str | None = None, temperature: float = 0.3) -> tuple[str, str]:
     """调用 LLM，返回 (reasoning_content, answer)。"""
     response = client.chat.completions.create(
         model=model or settings.OPENAI_MODEL,
         messages=messages,
-        temperature=0.7,
+        temperature=temperature,
     )
     msg = response.choices[0].message
     reasoning = getattr(msg, "reasoning_content", None) or ""
@@ -20,12 +20,12 @@ def chat_completion(messages: list[dict], model: str | None = None) -> tuple[str
     return reasoning, answer
 
 
-def chat_completion_stream(messages: list[dict], model: str | None = None):
+def chat_completion_stream(messages: list[dict], model: str | None = None, temperature: float = 0.3):
     """流式调用 LLM，yield {"type": "reasoning"|"answer", "content": ...}。"""
     response = client.chat.completions.create(
         model=model or settings.OPENAI_MODEL,
         messages=messages,
-        temperature=0.7,
+        temperature=temperature,
         stream=True,
     )
 
