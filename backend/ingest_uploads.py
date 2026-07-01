@@ -25,9 +25,9 @@ BATCH_SIZE = 100  # 向量化每批数量
 def ingest_file(db, filepath: str, filename: str, ext: str, kb_id: int, user_id: int):
     """处理单个文件并存入知识库。"""
     # 检查是否已导入
-    existing = db.query(Document).filter(
-        Document.filename == filename, Document.kb_id == kb_id
-    ).first()
+    existing = (
+        db.query(Document).filter(Document.filename == filename, Document.kb_id == kb_id).first()
+    )
     if existing:
         print(f"  [跳过] 已存在: {filename}")
         return
@@ -58,13 +58,15 @@ def ingest_file(db, filepath: str, filename: str, ext: str, kb_id: int, user_id:
     # 4. 构建元数据并存入 ChromaDB
     metadatas = []
     for c in all_chunks_meta:
-        metadatas.append({
-            "source": filename,
-            "page": c.get("page", 1),
-            "title_path": c.get("title_path", ""),
-            "char_offset": c.get("char_offset", 0),
-            "file_type": ext,
-        })
+        metadatas.append(
+            {
+                "source": filename,
+                "page": c.get("page", 1),
+                "title_path": c.get("title_path", ""),
+                "char_offset": c.get("char_offset", 0),
+                "file_type": ext,
+            }
+        )
     chunk_count = add_documents(kb_id, chunks, all_embeddings, metadatas)
 
     # 5. 写入数据库记录
@@ -123,7 +125,9 @@ def main():
         kb = db.query(KnowledgeBase).filter(KnowledgeBase.id == kb_id).first()
         if not kb:
             print(f"知识库 {kb_id} 不存在，自动创建...")
-            kb = KnowledgeBase(id=kb_id, name="默认知识库", description="自动创建", owner_id=user_id)
+            kb = KnowledgeBase(
+                id=kb_id, name="默认知识库", description="自动创建", owner_id=user_id
+            )
             db.add(kb)
             db.commit()
             db.refresh(kb)

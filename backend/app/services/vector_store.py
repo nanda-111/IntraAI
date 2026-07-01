@@ -93,16 +93,16 @@ def _tokenize_chinese(text: str) -> list[str]:
         if not t:
             continue
         # 保留中文词（2+字符）
-        if re.match(r'^[一-鿿]{2,}$', t):
+        if re.match(r"^[一-鿿]{2,}$", t):
             result.append(t)
         # 保留英文单词/命令（2+字符）
-        elif re.match(r'^[A-Za-z][A-Za-z0-9_./-]*$', t) and len(t) >= 2:
+        elif re.match(r"^[A-Za-z][A-Za-z0-9_./-]*$", t) and len(t) >= 2:
             result.append(t.lower())
         # 保留IP地址
-        elif re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', t):
+        elif re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", t):
             result.append(t)
         # 保留数字（3+位，如端口号、密码等）
-        elif re.match(r'^\d{3,}$', t):
+        elif re.match(r"^\d{3,}$", t):
             result.append(t)
 
     return result

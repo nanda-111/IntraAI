@@ -61,6 +61,7 @@ def ndcg_at_k(retrieved_ids: list[int], relevant_ids: set[int], top_k: int = 5) 
 @dataclass
 class RetrievalMetrics:
     """单条查询的检索质量指标。"""
+
     hit_rate_3: float = 0.0
     hit_rate_5: float = 0.0
     mrr: float = 0.0
@@ -93,6 +94,7 @@ def compute_retrieval_metrics(
 @dataclass
 class AggregatedRetrievalMetrics:
     """聚合后的检索质量指标。"""
+
     avg_hit_rate_3: float = 0.0
     avg_hit_rate_5: float = 0.0
     avg_mrr: float = 0.0
@@ -174,10 +176,22 @@ def answer_relevancy_simple(answer: str, question: str) -> float:
 def refusal_detection(answer: str) -> bool:
     """检测模型是否正确拒答（知识库中无相关信息时）。"""
     refusal_patterns = [
-        "无法回答", "没有相关信息", "不在知识库", "知识库中没有",
-        "无法找到", "没有找到", "未找到", "不包含", "没有提及",
-        "无法提供", "无法确定", "不清楚", "没有足够信息",
-        "cannot answer", "no relevant", "not found",
+        "无法回答",
+        "没有相关信息",
+        "不在知识库",
+        "知识库中没有",
+        "无法找到",
+        "没有找到",
+        "未找到",
+        "不包含",
+        "没有提及",
+        "无法提供",
+        "无法确定",
+        "不清楚",
+        "没有足够信息",
+        "cannot answer",
+        "no relevant",
+        "not found",
     ]
     answer_lower = answer.lower()
     return any(p in answer_lower for p in refusal_patterns)
@@ -186,6 +200,7 @@ def refusal_detection(answer: str) -> bool:
 @dataclass
 class GenerationMetrics:
     """单条查询的生成质量指标。"""
+
     faithfulness: float = 0.0
     answer_relevancy: float = 0.0
     keyword_coverage: float = 0.0
@@ -197,6 +212,7 @@ class GenerationMetrics:
 @dataclass
 class AggregatedGenerationMetrics:
     """聚合后的生成质量指标。"""
+
     avg_faithfulness: float = 0.0
     avg_answer_relevancy: float = 0.0
     avg_keyword_coverage: float = 0.0
@@ -215,6 +231,7 @@ class AggregatedGenerationMetrics:
 @dataclass
 class E2EMetrics:
     """单条查询的端到端指标。"""
+
     retrieval_latency_ms: float = 0.0
     generation_latency_ms: float = 0.0
     total_latency_ms: float = 0.0
@@ -226,6 +243,7 @@ class E2EMetrics:
 @dataclass
 class AggregatedE2EMetrics:
     """聚合后的端到端指标。"""
+
     avg_retrieval_latency_ms: float = 0.0
     avg_generation_latency_ms: float = 0.0
     avg_total_latency_ms: float = 0.0

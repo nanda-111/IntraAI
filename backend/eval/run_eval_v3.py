@@ -49,9 +49,11 @@ MAX_WORKERS = 4  # 并发数
 # 工具函数
 # ============================================================
 
+
 def init():
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     from app.services.vector_store import get_collection
+
     coll = get_collection(KB_ID)
     count = coll.count()
     print(f"  知识库 kb_{KB_ID}: {count} 个文档片段")
@@ -60,6 +62,7 @@ def init():
 
 def get_all_chunks():
     from app.services.vector_store import get_collection
+
     coll = get_collection(KB_ID)
     data = coll.get(include=["documents", "metadatas"])
     return data["documents"], data["metadatas"]
@@ -99,6 +102,7 @@ def run_generation(question, context):
 
 def build_context(results):
     from app.services.rag import _build_context
+
     return _build_context(results)
 
 
@@ -109,15 +113,16 @@ def match_chunk_ids(retrieved_texts, all_texts):
 
 def extract_keywords(text):
     keywords = set()
-    keywords.update(re.findall(r'[一-鿿]{2,8}', text))
-    keywords.update(re.findall(r'[A-Za-z][A-Za-z0-9]{1,}', text))
-    keywords.update(re.findall(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', text))
+    keywords.update(re.findall(r"[一-鿿]{2,8}", text))
+    keywords.update(re.findall(r"[A-Za-z][A-Za-z0-9]{1,}", text))
+    keywords.update(re.findall(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", text))
     return list(keywords)
 
 
 # ============================================================
 # Phase 1: 检索质量
 # ============================================================
+
 
 def phase_retrieval():
     print("\n" + "=" * 60)
@@ -132,7 +137,7 @@ def phase_retrieval():
         question = item["question"]
         relevant_ids = set(item["relevant_chunk_ids"])
         category = item.get("category", "unknown")
-        item_id = item.get("id", f"R{i+1:02d}")
+        item_id = item.get("id", f"R{i + 1:02d}")
 
         retrieved, latency = run_retrieval(question)
         retrieved_texts = [r[0] for r in retrieved]
@@ -142,15 +147,21 @@ def phase_retrieval():
         all_metrics.append(metrics)
 
         detail = {
-            "id": item_id, "category": category, "question": question,
+            "id": item_id,
+            "category": category,
+            "question": question,
             "latency_ms": round(latency, 1),
-            "hit_rate_5": metrics.hit_rate_5, "mrr": round(metrics.mrr, 3),
-            "recall_5": round(metrics.recall_5, 3), "ndcg_5": round(metrics.ndcg_5, 3),
+            "hit_rate_5": metrics.hit_rate_5,
+            "mrr": round(metrics.mrr, 3),
+            "recall_5": round(metrics.recall_5, 3),
+            "ndcg_5": round(metrics.ndcg_5, 3),
         }
         details.append(detail)
 
         status = "✓" if metrics.hit_rate_5 > 0 else "✗"
-        print(f"  [{status}] {item_id} HR@5={metrics.hit_rate_5:.0f} MRR={metrics.mrr:.3f} ({latency:.0f}ms)")
+        print(
+            f"  [{status}] {item_id} HR@5={metrics.hit_rate_5:.0f} MRR={metrics.mrr:.3f} ({latency:.0f}ms)"
+        )
 
     agg = aggregate_retrieval_metrics(all_metrics)
     result = {
@@ -174,6 +185,7 @@ def phase_retrieval():
 # Phase 2: 生成质量（并行 + RAGAS answer_relevancy）
 # ============================================================
 
+
 def _eval_single_generation(item):
     """评估单条生成质量。"""
     question = item["question"]
@@ -189,18 +201,26 @@ def _eval_single_generation(item):
     if expected == "unanswerable":
         refused = refusal_detection(answer)
         return {
-            "id": item_id, "expected": "unanswerable", "question": question,
-            "answer": answer[:300], "refusal_correct": refused,
+            "id": item_id,
+            "expected": "unanswerable",
+            "question": question,
+            "answer": answer[:300],
+            "refusal_correct": refused,
             "gen_latency_ms": round(gen_ms, 1),
         }
     else:
         faith = faithfulness_simple(answer, context)
         kw_cov = keyword_coverage(answer, key_points) if key_points else 0
         return {
-            "id": item_id, "expected": expected, "question": question,
-            "answer": answer[:300], "ground_truth": gt,
-            "faithfulness": round(faith, 3), "keyword_coverage": round(kw_cov, 3),
-            "answer_length": len(answer), "gen_latency_ms": round(gen_ms, 1),
+            "id": item_id,
+            "expected": expected,
+            "question": question,
+            "answer": answer[:300],
+            "ground_truth": gt,
+            "faithfulness": round(faith, 3),
+            "keyword_coverage": round(kw_cov, 3),
+            "answer_length": len(answer),
+            "gen_latency_ms": round(gen_ms, 1),
             "context": context,  # 保留用于 RAGAS
         }
 
@@ -223,20 +243,28 @@ def run_ragas_relevancy(items_with_context):
             def generate(self, messages, stop=None, callbacks=None, **kwargs):
                 kwargs["n"] = 1
                 return super().generate(messages, stop=stop, callbacks=callbacks, **kwargs)
+
             async def agenerate(self, messages, stop=None, callbacks=None, **kwargs):
                 kwargs["n"] = 1
                 return await super().agenerate(messages, stop=stop, callbacks=callbacks, **kwargs)
 
-        llm = LangchainLLMWrapper(ForceN1ChatOpenAI(
-            model=settings.OPENAI_MODEL,
-            openai_api_key=settings.OPENAI_API_KEY,
-            openai_api_base=settings.OPENAI_BASE_URL,
-            temperature=0, max_tokens=4096, request_timeout=120,
-        ))
+        llm = LangchainLLMWrapper(
+            ForceN1ChatOpenAI(
+                model=settings.OPENAI_MODEL,
+                openai_api_key=settings.OPENAI_API_KEY,
+                openai_api_base=settings.OPENAI_BASE_URL,
+                temperature=0,
+                max_tokens=4096,
+                request_timeout=120,
+            )
+        )
 
         class LocalEmbeddings(Embeddings):
-            def embed_documents(self, texts): return get_embeddings(texts)
-            def embed_query(self, text): return get_embeddings([text])[0]
+            def embed_documents(self, texts):
+                return get_embeddings(texts)
+
+            def embed_query(self, text):
+                return get_embeddings([text])[0]
 
         lc_embeddings = LangchainEmbeddingsWrapper(LocalEmbeddings())
 
@@ -252,10 +280,14 @@ def run_ragas_relevancy(items_with_context):
         if not questions:
             return None
 
-        ds = Dataset.from_dict({
-            "question": questions, "answer": answers,
-            "contexts": contexts_list, "ground_truth": ground_truths,
-        })
+        ds = Dataset.from_dict(
+            {
+                "question": questions,
+                "answer": answers,
+                "contexts": contexts_list,
+                "ground_truth": ground_truths,
+            }
+        )
 
         print(f"\n  运行 RAGAS answer_relevancy ({len(questions)} 条)...")
         t0 = time.perf_counter()
@@ -265,7 +297,9 @@ def run_ragas_relevancy(items_with_context):
         scores = result["answer_relevancy"]
         valid = [s for s in scores if s is not None and not math.isnan(s)]
         avg = sum(valid) / len(valid) if valid else 0.0
-        print(f"  RAGAS answer_relevancy: {avg:.4f} ({len(valid)}/{len(scores)} valid, {elapsed:.0f}s)")
+        print(
+            f"  RAGAS answer_relevancy: {avg:.4f} ({len(valid)}/{len(scores)} valid, {elapsed:.0f}s)"
+        )
         return round(avg, 4)
     except Exception as e:
         print(f"  RAGAS 评估失败: {e}")
@@ -281,7 +315,9 @@ def phase_generation():
     answerable, unanswerable = [], []
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = {executor.submit(_eval_single_generation, item): item for item in GENERATION_TEST_SET}
+        futures = {
+            executor.submit(_eval_single_generation, item): item for item in GENERATION_TEST_SET
+        }
         for future in as_completed(futures):
             item = futures[future]
             try:
@@ -293,9 +329,11 @@ def phase_generation():
                     print(f"  [{s}] {detail['id']} [拒答] ({detail['gen_latency_ms']:.0f}ms)")
                 else:
                     answerable.append(detail)
-                    print(f"  [·] {detail['id']} Faith={detail['faithfulness']:.3f} KW={detail['keyword_coverage']:.3f} ({detail['gen_latency_ms']:.0f}ms)")
+                    print(
+                        f"  [·] {detail['id']} Faith={detail['faithfulness']:.3f} KW={detail['keyword_coverage']:.3f} ({detail['gen_latency_ms']:.0f}ms)"
+                    )
             except Exception as e:
-                print(f"  [✗] {item.get('id','??')} 失败: {e}")
+                print(f"  [✗] {item.get('id', '??')} 失败: {e}")
 
     details.sort(key=lambda d: d["id"])
 
@@ -328,6 +366,7 @@ def phase_generation():
 # ============================================================
 # 报告生成
 # ============================================================
+
 
 def generate_report(retrieval_result, generation_result):
     """生成 Markdown 报告。"""
@@ -363,7 +402,11 @@ def generate_report(retrieval_result, generation_result):
 
     if retrieval_result:
         r = retrieval_result["aggregate"]
-        for metric, label in [("hit_rate_5", "Hit Rate@5"), ("mrr", "MRR"), ("recall_5", "Recall@5")]:
+        for metric, label in [
+            ("hit_rate_5", "Hit Rate@5"),
+            ("mrr", "MRR"),
+            ("recall_5", "Recall@5"),
+        ]:
             v = r[metric]
             lines.append(f"| 检索质量 | {label} | {v:.4f} | {grade(v)} |")
 
@@ -407,8 +450,11 @@ def generate_report(retrieval_result, generation_result):
     if generation_result:
         lines.append("## 生成质量详情")
         lines.append("")
-        low_faith = [d for d in generation_result["details"]
-                     if d.get("faithfulness") is not None and d["faithfulness"] < 0.5]
+        low_faith = [
+            d
+            for d in generation_result["details"]
+            if d.get("faithfulness") is not None and d["faithfulness"] < 0.5
+        ]
         if low_faith:
             lines.append(f"**低忠实度问题** ({len(low_faith)} 条 < 0.5)：")
             lines.append("")
@@ -423,7 +469,9 @@ def generate_report(retrieval_result, generation_result):
     if retrieval_result:
         r = retrieval_result["aggregate"]
         if r["hit_rate_5"] < 0.8:
-            suggestions.append("- **检索质量**: Hit Rate@5 偏低，建议优化 embedding 模型或调整检索参数")
+            suggestions.append(
+                "- **检索质量**: Hit Rate@5 偏低，建议优化 embedding 模型或调整检索参数"
+            )
         if r["mrr"] < 0.5:
             suggestions.append("- **排序质量**: MRR 偏低，建议优化 reranker 或调整混合检索权重")
     if generation_result:
@@ -443,6 +491,7 @@ def generate_report(retrieval_result, generation_result):
 # ============================================================
 # 主入口
 # ============================================================
+
 
 def main():
     print("=" * 60)
@@ -491,7 +540,7 @@ def main():
     print(f"  报告已生成: {report_file}")
 
     total_time = time.perf_counter() - t_start
-    print(f"\n  总耗时: {total_time:.0f}s ({total_time/60:.1f}分钟)")
+    print(f"\n  总耗时: {total_time:.0f}s ({total_time / 60:.1f}分钟)")
     print("=" * 60)
     print("  评估完成！")
     print("=" * 60)

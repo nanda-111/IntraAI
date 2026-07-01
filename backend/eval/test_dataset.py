@@ -83,7 +83,6 @@ RETRIEVAL_TEST_SET = [
         "ground_truth_answer": "项目中使用了PPP（点对点协议）用于串行链路封装，PAP（密码认证协议）用于链路安全认证，OSPF（开放最短路径优先）用于全网路由互联。",
         "relevant_chunk_ids": [0, 3, 4, 5],
     },
-
     # === IP地址查询（6条）===
     {
         "id": "R06",
@@ -133,7 +132,6 @@ RETRIEVAL_TEST_SET = [
         "ground_truth_answer": "根据文档，R1配置了LoopBack0接口，IP地址为1.1.1.1/32。",
         "relevant_chunk_ids": [2],
     },
-
     # === 配置命令查询（8条）===
     {
         "id": "R12",
@@ -199,7 +197,6 @@ RETRIEVAL_TEST_SET = [
         "ground_truth_answer": "执行display ip interface brief命令查看接口状态，可以看到接口的IP地址、Physical和Protocol状态。",
         "relevant_chunk_ids": [5, 6, 8],
     },
-
     # === 验证/故障排查查询（8条）===
     {
         "id": "R20",
@@ -265,7 +262,6 @@ RETRIEVAL_TEST_SET = [
         "ground_truth_answer": "在PC1上执行ping 192.168.20.1命令测试到PC2的连通性。正常情况下应该显示5 packet(s) transmitted, 5 packet(s) received, 0.00% packet loss。",
         "relevant_chunk_ids": [10, 11],
     },
-
     # === 综合理解查询（6条）===
     {
         "id": "R28",
@@ -315,7 +311,6 @@ RETRIEVAL_TEST_SET = [
         "ground_truth_answer": "关键配置点包括：1）接口IP地址配置；2）OSPF路由协议配置；3）PPP封装配置；4）PAP认证配置（认证端和被认证端）；5）AAA用户配置。",
         "relevant_chunk_ids": [2, 3, 4, 5, 7],
     },
-
     # === 边界情况查询（7条）===
     {
         "id": "R34",
@@ -398,7 +393,14 @@ GENERATION_TEST_SET = [
         "question": "如何配置R1的PAP认证？",
         "ground_truth_answer": "在R1的Serial4/0/0接口下执行link-protocol ppp和ppp authentication-mode pap命令启用PAP认证，然后在AAA视图下创建用户名Jan16和密码123456。",
         "expected_behavior": "answerable",
-        "key_points": ["Serial4/0/0", "link-protocol ppp", "ppp authentication-mode pap", "AAA", "Jan16", "123456"],
+        "key_points": [
+            "Serial4/0/0",
+            "link-protocol ppp",
+            "ppp authentication-mode pap",
+            "AAA",
+            "Jan16",
+            "123456",
+        ],
     },
     {
         "id": "G03",
@@ -490,7 +492,6 @@ GENERATION_TEST_SET = [
         "expected_behavior": "answerable",
         "key_points": ["5 packet(s)", "0.00% packet loss", "47/62/78 ms"],
     },
-
     # === 不可回答问题（8条）===
     {
         "id": "G13",
@@ -564,7 +565,6 @@ GENERATION_TEST_SET = [
         "expected_behavior": "unanswerable",
         "key_points": [],
     },
-
     # === 部分可答/模糊问题（5条）===
     {
         "id": "G21",
@@ -622,17 +622,29 @@ MULTI_TURN_TEST_SET = [
         "id": "MT01",
         "description": "渐进式深入：项目概述→协议→命令→验证",
         "turns": [
-            {"question": "这个项目是做什么的？", "expected_keywords": ["PAP", "认证", "互联", "安全"]},
+            {
+                "question": "这个项目是做什么的？",
+                "expected_keywords": ["PAP", "认证", "互联", "安全"],
+            },
             {"question": "R1和R2之间用什么协议？", "expected_keywords": ["PPP", "PAP"]},
-            {"question": "认证配置的具体命令是什么？", "expected_keywords": ["ppp authentication-mode pap", "ppp pap local-user"]},
-            {"question": "配置完成后怎么验证？", "expected_keywords": ["ping", "packet loss", "dis ip int brief"]},
+            {
+                "question": "认证配置的具体命令是什么？",
+                "expected_keywords": ["ppp authentication-mode pap", "ppp pap local-user"],
+            },
+            {
+                "question": "配置完成后怎么验证？",
+                "expected_keywords": ["ping", "packet loss", "dis ip int brief"],
+            },
         ],
     },
     {
         "id": "MT02",
         "description": "指代消解：测试模型对'R2呢'这类省略问句的理解",
         "turns": [
-            {"question": "R1的IP地址是多少？", "expected_keywords": ["192.168.10.254", "10.10.10.1"]},
+            {
+                "question": "R1的IP地址是多少？",
+                "expected_keywords": ["192.168.10.254", "10.10.10.1"],
+            },
             {"question": "R2呢？", "expected_keywords": ["192.168.20.254", "10.10.10.2"]},
             {"question": "PC之间能通信吗？", "expected_keywords": ["ping", "0%", "packet loss"]},
         ],
@@ -641,28 +653,52 @@ MULTI_TURN_TEST_SET = [
         "id": "MT03",
         "description": "故障排查流程：现象→原因→解决",
         "turns": [
-            {"question": "ping测试100%丢包是怎么回事？", "expected_keywords": ["认证", "未通过", "PAP"]},
-            {"question": "怎么检查认证是否成功？", "expected_keywords": ["display ip int brief", "up/up"]},
-            {"question": "如果接口状态不正常怎么办？", "expected_keywords": ["检查配置", "用户名", "密码"]},
-            {"question": "配置正确但还是不通呢？", "expected_keywords": ["shutdown", "undo shutdown", "重启"]},
+            {
+                "question": "ping测试100%丢包是怎么回事？",
+                "expected_keywords": ["认证", "未通过", "PAP"],
+            },
+            {
+                "question": "怎么检查认证是否成功？",
+                "expected_keywords": ["display ip int brief", "up/up"],
+            },
+            {
+                "question": "如果接口状态不正常怎么办？",
+                "expected_keywords": ["检查配置", "用户名", "密码"],
+            },
+            {
+                "question": "配置正确但还是不通呢？",
+                "expected_keywords": ["shutdown", "undo shutdown", "重启"],
+            },
         ],
     },
     {
         "id": "MT04",
         "description": "IP地址规划讨论",
         "turns": [
-            {"question": "这个项目的IP地址是怎么规划的？", "expected_keywords": ["192.168.10.0/24", "192.168.20.0/24", "10.10.10.0/24"]},
+            {
+                "question": "这个项目的IP地址是怎么规划的？",
+                "expected_keywords": ["192.168.10.0/24", "192.168.20.0/24", "10.10.10.0/24"],
+            },
             {"question": "为什么用这三个网段？", "expected_keywords": ["总部", "分公司", "互联"]},
-            {"question": "PC的网关是什么？", "expected_keywords": ["192.168.10.254", "192.168.20.254"]},
+            {
+                "question": "PC的网关是什么？",
+                "expected_keywords": ["192.168.10.254", "192.168.20.254"],
+            },
         ],
     },
     {
         "id": "MT05",
         "description": "配置步骤顺序讨论",
         "turns": [
-            {"question": "配置PAP认证需要哪些步骤？", "expected_keywords": ["接口配置", "PPP", "AAA", "用户名密码"]},
+            {
+                "question": "配置PAP认证需要哪些步骤？",
+                "expected_keywords": ["接口配置", "PPP", "AAA", "用户名密码"],
+            },
             {"question": "先配置R1还是R2？", "expected_keywords": ["都可以", "顺序"]},
-            {"question": "配置完后需要重启接口吗？", "expected_keywords": ["shutdown", "undo shutdown"]},
+            {
+                "question": "配置完后需要重启接口吗？",
+                "expected_keywords": ["shutdown", "undo shutdown"],
+            },
             {"question": "最后怎么验证？", "expected_keywords": ["ping", "display"]},
         ],
     },
