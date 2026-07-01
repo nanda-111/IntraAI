@@ -21,8 +21,8 @@ class TestBuildContext:
 
         assert "文档内容1" in context
         assert "文档内容2" in context
-        assert "[来源: doc1.pdf]" in context
-        assert "[来源: doc2.pdf]" in context
+        assert "[片段1 - 来源: doc1.pdf]" in context
+        assert "[片段2 - 来源: doc2.pdf]" in context
 
     def test_build_context_empty_results(self):
         """测试无检索结果时返回默认文本"""
@@ -64,7 +64,7 @@ class TestBuildContext:
 
         context = _build_context(results)
 
-        assert context == "[来源: single.pdf]\n单条文档"
+        assert context == "[片段1 - 来源: single.pdf]\n单条文档"
 
     def test_build_context_mixed_source_presence(self):
         """测试混合有来源和无来源的结果"""
@@ -77,7 +77,7 @@ class TestBuildContext:
 
         context = _build_context(results)
 
-        assert "[来源: doc.pdf]" in context
+        assert "[片段1 - 来源: doc.pdf]" in context
         assert "有来源的内容" in context
         assert "无来源的内容" in context
         # 无来源的不应该出现 [来源:]
@@ -299,7 +299,7 @@ class TestAskWithRag:
         call_args = mock_chat.call_args[0][0]
         system_content = call_args[0]["content"]
         assert "特定文档内容XYZ" in system_content
-        assert "[来源: specific.pdf]" in system_content
+        assert "[片段1 - 来源: specific.pdf]" in system_content
 
 
 class TestAskWithRagStream:
