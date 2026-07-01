@@ -112,7 +112,7 @@ def main():
     db = SessionLocal()
     try:
         # 查找管理员用户
-        admin = db.query(User).filter(User.is_admin == True).first()
+        admin = db.query(User).filter(User.is_admin).first()
         if not admin:
             print("错误：没有管理员用户，请先注册一个管理员")
             return

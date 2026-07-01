@@ -28,7 +28,7 @@ import axios from 'axios'
 
 // 创建 Axios 实例，设置统一的基础配置
 const api = axios.create({
-  // 生产环境（Docker）中，前端和后端通过 Nginx 反向代理在同一个域名下，
+  // 生产环境（Docker）中，一个域名下，前端和后端通过 Nginx 反向代理在同
   // 不需要指定后端地址（baseURL 为空，请求会发向当前域名）
   // 开发环境中，前端运行在 localhost:5173，后端在 localhost:8000，需要显式指定地址
   baseURL: import.meta.env.PROD ? '' : 'http://localhost:8000',

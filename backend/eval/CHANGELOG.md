@@ -83,7 +83,7 @@
 |------|----------|------|
 | `test_dataset.py` | 重写 | 重建数据集，扩充规模 |
 | `run_eval_v2.py` | 更新 | 支持新数据集，纳入reranker，新增Phase 4/5 |
-| `generate_report.py` | 新增 | 报告生成器 |
+| `run_eval_v3.py` | 新增 | 主评估脚本（整合检索+生成+RAGAS+报告生成） |
 | `README.md` | 新增 | 评估框架文档 |
 | `CHANGELOG.md` | 新增 | 更新日志 |
 
@@ -110,15 +110,9 @@
 ### 使用方法
 
 ```bash
-# 运行完整评估
+# 运行完整评估（含报告生成）
 cd F:/IntraAI/backend
-PYTHONIOENCODING=utf-8 python eval/run_eval_v2.py
-
-# 运行 Ragas 评估
-PYTHONIOENCODING=utf-8 python eval/run_ragas.py
-
-# 生成评估报告
-PYTHONIOENCODING=utf-8 python eval/generate_report.py
+PYTHONIOENCODING=utf-8 python eval/run_eval_v3.py
 ```
 
 ### 预期效果

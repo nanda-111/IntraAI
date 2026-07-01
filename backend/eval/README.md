@@ -10,13 +10,10 @@
 eval/
 ├── test_dataset.py      # 测试数据集定义
 ├── metrics.py           # 指标计算模块
-├── run_eval_v2.py       # 主评估脚本（v3）
-├── run_ragas.py         # Ragas 框架评估
-├── generate_report.py   # 报告生成器
+├── run_eval_v3.py       # 主评估脚本（检索+生成+RAGAS+报告）
 ├── README.md            # 本文件
 └── results/             # 评估结果目录
     ├── eval_results.json
-    ├── ragas_results.json
     └── RAG_Evaluation_Report.md
 ```
 
@@ -50,46 +47,18 @@ eval/
 
 ## 使用方法
 
-### 1. 运行完整评估
+### 运行完整评估
 
 ```bash
 cd F:/IntraAI/backend
-PYTHONIOENCODING=utf-8 python eval/run_eval_v2.py
+PYTHONIOENCODING=utf-8 python eval/run_eval_v3.py
 ```
 
-评估包含5个阶段：
-1. Phase 1: 检索质量评估
-2. Phase 2: 生成质量评估
-3. Phase 3: 端到端评估
-4. Phase 4: 对抗性测试
-5. Phase 5: 跨知识库测试
+评估包含2个阶段：
+1. Phase 1: 检索质量评估（Hit Rate、MRR、Recall、NDCG）
+2. Phase 2: 生成质量评估（忠实度、关键词覆盖、拒答准确率、RAGAS answer_relevancy）
 
-### 2. 运行 Ragas 评估
-
-```bash
-cd F:/IntraAI/backend
-PYTHONIOENCODING=utf-8 python eval/run_ragas.py
-```
-
-使用 DeepSeek LLM 作为评判模型，计算：
-- Faithfulness（忠实度）
-- Answer Relevancy（答案相关性）
-- Context Precision（上下文精确度）
-- Context Recall（上下文召回率）
-- Answer Correctness（答案正确性）
-
-### 3. 生成评估报告
-
-```bash
-cd F:/IntraAI/backend
-PYTHONIOENCODING=utf-8 python eval/generate_report.py
-```
-
-生成 Markdown 格式的评估报告，包含：
-- 评估汇总表格
-- 按类别/难度的详细分析
-- 失败查询分析
-- 改进建议
+评估完成后自动生成 Markdown 报告到 `results/RAG_Evaluation_Report.md`。
 
 ## 评估指标
 

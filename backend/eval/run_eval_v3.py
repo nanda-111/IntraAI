@@ -17,28 +17,27 @@ import os
 import re
 import sys
 import time
-from pathlib import Path
-from collections import defaultdict
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 os.environ["SECRET_KEY"] = "eval-secret-key"
 os.environ["CHROMA_DIR"] = str(Path(__file__).resolve().parent.parent / "chroma_data")
 os.environ["HF_HOME"] = str(Path.home() / ".cache" / "huggingface")
 
-from sentence_transformers import SentenceTransformer  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from eval.metrics import (
-    compute_retrieval_metrics,
     aggregate_retrieval_metrics,
+    compute_retrieval_metrics,
     faithfulness_simple,
     keyword_coverage,
     refusal_detection,
 )
 from eval.test_dataset import (
-    RETRIEVAL_TEST_SET,
     GENERATION_TEST_SET,
+    RETRIEVAL_TEST_SET,
 )
 
 KB_ID = 4
@@ -209,15 +208,16 @@ def _eval_single_generation(item):
 def run_ragas_relevancy(items_with_context):
     """运行 RAGAS answer_relevancy 指标。"""
     try:
+        from datasets import Dataset
+        from langchain_core.embeddings import Embeddings
+        from langchain_openai import ChatOpenAI
+        from ragas import evaluate
+        from ragas.embeddings import LangchainEmbeddingsWrapper
+        from ragas.llms import LangchainLLMWrapper
+        from ragas.metrics import AnswerRelevancy
+
         from app.core.config import settings
         from app.services.embedding import get_embeddings
-        from ragas import evaluate
-        from ragas.llms import LangchainLLMWrapper
-        from ragas.embeddings import LangchainEmbeddingsWrapper
-        from ragas.metrics import AnswerRelevancy
-        from datasets import Dataset
-        from langchain_openai import ChatOpenAI
-        from langchain_core.embeddings import Embeddings
 
         class ForceN1ChatOpenAI(ChatOpenAI):
             def generate(self, messages, stop=None, callbacks=None, **kwargs):
@@ -316,7 +316,7 @@ def phase_generation():
         "details": [{k: v for k, v in d.items() if k != "context"} for d in details],
     }
 
-    print(f"\n  --- 汇总 ---")
+    print("\n  --- 汇总 ---")
     print(f"  忠实度:       {avg_faith:.4f}")
     print(f"  关键词覆盖:   {avg_kw:.4f}")
     print(f"  拒答准确率:   {refusal_acc:.4f}")
@@ -338,15 +338,21 @@ def generate_report(retrieval_result, generation_result):
     lines.append("")
 
     def grade(val, thresholds=(0.8, 0.6, 0.4)):
-        if val >= thresholds[0]: return "优秀"
-        if val >= thresholds[1]: return "良好"
-        if val >= thresholds[2]: return "一般"
+        if val >= thresholds[0]:
+            return "优秀"
+        if val >= thresholds[1]:
+            return "良好"
+        if val >= thresholds[2]:
+            return "一般"
         return "待改进"
 
     def grade_latency(val, thresholds=(5000, 15000, 30000)):
-        if val <= thresholds[0]: return "优秀"
-        if val <= thresholds[1]: return "良好"
-        if val <= thresholds[2]: return "一般"
+        if val <= thresholds[0]:
+            return "优秀"
+        if val <= thresholds[1]:
+            return "良好"
+        if val <= thresholds[2]:
+            return "一般"
         return "待优化"
 
     # 汇总表
@@ -457,13 +463,13 @@ def main():
         retrieval_result = phase_retrieval()
     except Exception as e:
         print(f"  [错误] 检索评估失败: {e}")
-        import traceback; traceback.print_exc()
+        traceback.print_exc()
 
     try:
         generation_result = phase_generation()
     except Exception as e:
         print(f"  [错误] 生成评估失败: {e}")
-        import traceback; traceback.print_exc()
+        traceback.print_exc()
 
     # 保存结果
     all_results = {}
