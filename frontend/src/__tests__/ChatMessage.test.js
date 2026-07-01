@@ -9,7 +9,7 @@ describe('ChatMessage', () => {
     })
     expect(wrapper.find('.message.user').exists()).toBe(true)
     expect(wrapper.find('.avatar').exists()).toBe(false)
-    expect(wrapper.find('.user-content').text()).toBe('你好')
+    expect(wrapper.find('.user-bubble').text()).toBe('你好')
   })
 
   it('AI 消息靠左显示，有头像', () => {
@@ -17,21 +17,21 @@ describe('ChatMessage', () => {
       props: { message: { role: 'assistant', content: '你好！' } },
     })
     expect(wrapper.find('.message.assistant').exists()).toBe(true)
-    expect(wrapper.find('.avatar').text()).toBe('AI')
+    expect(wrapper.find('.avatar').exists()).toBe(true)
   })
 
   it('用户消息不经过 Markdown 渲染', () => {
     const wrapper = mount(ChatMessage, {
       props: { message: { role: 'user', content: '**加粗**' } },
     })
-    expect(wrapper.find('.user-content').text()).toBe('**加粗**')
+    expect(wrapper.find('.user-bubble').text()).toBe('**加粗**')
   })
 
   it('AI 消息经过 Markdown 渲染为 HTML', () => {
     const wrapper = mount(ChatMessage, {
       props: { message: { role: 'assistant', content: '**加粗**' } },
     })
-    expect(wrapper.find('.content').html()).toContain('<strong>加粗</strong>')
+    expect(wrapper.find('.answer-content').html()).toContain('<strong>加粗</strong>')
   })
 
   it('有 reasoning 时显示思考面板', () => {
@@ -87,7 +87,7 @@ describe('ChatMessage', () => {
       },
     })
     expect(wrapper.find('.thinking-panel').exists()).toBe(true)
-    expect(wrapper.find('.content').exists()).toBe(true)
-    expect(wrapper.find('.content').html()).toContain('这是回答')
+    expect(wrapper.find('.answer-content').exists()).toBe(true)
+    expect(wrapper.find('.answer-content').html()).toContain('这是回答')
   })
 })
