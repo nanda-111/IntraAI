@@ -199,10 +199,10 @@ class TestDeleteKB:
         db_session.add(doc)
         db_session.commit()
 
-        mock_remove = monkeypatch.setattr("os.remove", lambda p: None)
-        mock_exists = monkeypatch.setattr("os.path.exists", lambda p: True)
-        mock_isdir = monkeypatch.setattr("os.path.isdir", lambda p: True)
-        mock_rmtree = monkeypatch.setattr("shutil.rmtree", lambda p, **kw: None)
+        monkeypatch.setattr("os.remove", lambda p: None)
+        monkeypatch.setattr("os.path.exists", lambda p: True)
+        monkeypatch.setattr("os.path.isdir", lambda p: True)
+        monkeypatch.setattr("shutil.rmtree", lambda p, **kw: None)
 
         with patch("app.api.knowledge_bases.delete_collection"):
             res = client.delete(f"/api/knowledge-bases/{kb_id}", headers=admin_headers)
@@ -324,7 +324,6 @@ class TestSyncFromUploads:
     def test_sync_new_directory_creates_kb(self, client, admin_headers, db_session, monkeypatch):
         """测试新目录自动创建知识库"""
         from unittest.mock import patch
-        from pathlib import Path
 
         # Mock upload_root exists
         # We need to mock carefully: upload_root isdir=True, but subdir kb_id isdir also True
@@ -366,8 +365,6 @@ class TestSyncFromUploads:
         )
         db_session.add(kb)
         db_session.commit()
-
-        file_seen = []
 
         def mock_listdir(path):
             p = str(path)
@@ -446,7 +443,7 @@ class TestSyncFromUploads:
         monkeypatch.setattr("os.listdir", mock_listdir)
         monkeypatch.setattr("os.path.isfile", lambda p: False)
 
-        with patch("app.api.knowledge_bases.delete_by_source") as mock_del:
+        with patch("app.api.knowledge_bases.delete_by_source"):
             with patch("app.api.knowledge_bases.delete_collection"):
                 res = client.post("/api/knowledge-bases/sync", headers=admin_headers)
         assert res.status_code == 200
@@ -512,7 +509,7 @@ class TestSyncFromUploads:
         )
 
         with patch("app.api.knowledge_bases.add_documents", return_value=1):
-            with patch("app.api.knowledge_bases.delete_by_source") as mock_del:
+            with patch("app.api.knowledge_bases.delete_by_source"):
                 with patch("app.api.knowledge_bases.delete_collection"):
                     res = client.post("/api/knowledge-bases/sync", headers=admin_headers)
         assert res.status_code == 200
@@ -540,7 +537,7 @@ class TestSyncFromUploads:
         monkeypatch.setattr("os.listdir", mock_listdir)
         monkeypatch.setattr("os.path.isfile", lambda p: False)
 
-        with patch("app.api.knowledge_bases.delete_collection") as mock_del_col:
+        with patch("app.api.knowledge_bases.delete_collection"):
             res = client.post("/api/knowledge-bases/sync", headers=admin_headers)
         assert res.status_code == 200
         data = res.json()
