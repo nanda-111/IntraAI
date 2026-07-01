@@ -20,6 +20,12 @@ ignore = [
     "B008",  # 函数参数默认值中调用（FastAPI Depends 依赖注入的标准写法）
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# 这两个文件的导入顺序是刻意为之：rag/tools 必须在 llm 之前导入，
+# 否则 Windows 上 PyTorch 和 OpenAI SDK 的加载顺序会导致 segfault。
+"backend/app/api/chat.py" = ["I001"]
+"backend/app/services/langchain_agent.py" = ["I001"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 
