@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     MYSQL_PASSWORD: str = ""
     MYSQL_DB: str = "intraai"
 
+    # 可选：直接指定 SQLAlchemy 连接串（本地演示可用 sqlite:///./intraai.db）。
+    # 为空时由 MYSQL_* 组合出 MySQL 连接串。
+    DATABASE_URL: str = ""
+
     SECRET_KEY: str = "dev-secret-key-please-change"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
@@ -27,6 +31,11 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
     CHROMA_DIR: str = "./chroma_data"
     RERANK_MODEL: str = "BAAI/bge-reranker-base"
+    SEED_DEMO_DATA: bool = True
+    AUTO_INDEX_SEED: bool = False
+    # 旧版 LangChain Agent（含通用 SQL 查询工具）默认停用。
+    # 新平台只使用受控的型号感知客服与诊断工具。仅在受控环境临时开启。
+    ENABLE_LEGACY_AGENT: bool = False
 
     @field_validator("SECRET_KEY")
     @classmethod
@@ -39,7 +48,9 @@ class Settings(BaseSettings):
         return v
 
     @property
-    def DATABASE_URL(self) -> str:
+    def database_url(self) -> str:
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
         return (
             f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}"
             f"@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}"

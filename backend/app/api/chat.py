@@ -17,6 +17,7 @@ from sqlalchemy import func as sql_func
 from sqlalchemy.orm import Session as DbSession
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.conversation import Conversation
 from app.models.session import Session
@@ -145,6 +146,11 @@ def chat(
     current_user: User = Depends(get_current_user),
 ):
     """普通对话接口（支持多轮上下文）"""
+    if data.mode == "agent" and not settings.ENABLE_LEGACY_AGENT:
+        raise HTTPException(
+            status_code=403,
+            detail="旧版 Agent 模式已停用；请使用 /api/assistant 的受控客服接口。",
+        )
     session = None
     summary = None
     history = None
@@ -183,6 +189,11 @@ async def chat_stream(
     current_user: User = Depends(get_current_user),
 ):
     """流式对话接口（支持多轮上下文）"""
+    if data.mode == "agent" and not settings.ENABLE_LEGACY_AGENT:
+        raise HTTPException(
+            status_code=403,
+            detail="旧版 Agent 模式已停用；请使用 /api/assistant 的受控客服接口。",
+        )
 
     async def generate():
         session = None

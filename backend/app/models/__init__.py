@@ -1,8 +1,31 @@
 """导入所有 ORM 模型，确保 Base.metadata 能收集到所有表定义。"""
 
+from app.models.audit import AuditLog as AuditLog
+from app.models.audit import UserFeedback as UserFeedback
+from app.models.chat_session import PrinterChatMessage as PrinterChatMessage
+from app.models.chat_session import PrinterChatSession as PrinterChatSession
+from app.models.chat_session import RetrievalLog as RetrievalLog
 from app.models.conversation import Conversation as Conversation
+from app.models.diagnosis import DiagnosisSession as DiagnosisSession
+from app.models.diagnosis import DiagnosisStep as DiagnosisStep
+from app.models.diagnosis import DiagnosisTurn as DiagnosisTurn
 from app.models.document import Document as Document
+from app.models.evaluation import EvalDataset as EvalDataset
+from app.models.evaluation import EvalItem as EvalItem
+from app.models.evaluation import EvalResult as EvalResult
+from app.models.evaluation import EvalRun as EvalRun
 from app.models.knowledge_base import KnowledgeBase as KnowledgeBase
+from app.models.printer_brand import ModelCapability as ModelCapability
+from app.models.printer_brand import PrinterBrand as PrinterBrand
+from app.models.printer_brand import ProductModel as ProductModel
+from app.models.printer_brand import UserDevice as UserDevice
+from app.models.repair_knowledge import FaultTaxonomy as FaultTaxonomy
+from app.models.repair_knowledge import KnowledgeDocument as KnowledgeDocument
+from app.models.repair_knowledge import KnowledgeSource as KnowledgeSource
+from app.models.repair_knowledge import RepairCase as RepairCase
+from app.models.repair_knowledge import RepairKnowledge as RepairKnowledge
+from app.models.service_ticket import ServiceTicket as ServiceTicket
+from app.models.service_ticket import TicketEvent as TicketEvent
 from app.models.session import Session as Session
 from app.models.usage_log import UsageLog as UsageLog
 from app.models.user import User as User

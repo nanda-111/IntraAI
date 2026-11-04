@@ -1,94 +1,183 @@
-/**
- * 路由配置文件
- *
- * 核心概念：
- * - 路由：定义 URL 路径和页面组件之间的映射关系
- * - 懒加载（lazy loading）：使用 () => import(...) 语法，只有当用户访问该页面时
- *   才会下载对应的 JS 文件，减少首屏加载时间
- * - meta 字段：给路由附加自定义信息（如 requiresAuth），供路由守卫判断使用
- * - createWebHistory vs createWebHashHistory：
- *   - createWebHistory：URL 格式为 /login（更美观，需要服务器配置回退路由）
- *   - createWebHashHistory：URL 格式为 /#/login（带 # 号，兼容性更好，无需服务器配置）
- */
 import { createRouter, createWebHistory } from 'vue-router'
+import PlatformLayout from '../components/PlatformLayout.vue'
 
-// 路由配置 — 定义 URL 路径和页面组件的映射关系
 const routes = [
   {
     path: '/login',
     name: 'Login',
-    // 懒加载：只在用户访问 /login 时才下载 LoginView.vue 对应的 JS 文件
-    // 好处：减少首屏加载体积，提升初始加载速度
     component: () => import('../views/LoginView.vue'),
   },
   {
     path: '/',
-    name: 'Chat',
-    component: () => import('../views/ChatView.vue'),
-    // meta.requiresAuth = true 表示该页面需要登录才能访问
-    // 路由守卫会读取此字段进行权限判断
-    meta: { requiresAuth: true },
+    component: PlatformLayout,
+    children: [
+      { path: '', redirect: '/dashboard' },
+      {
+        path: 'dashboard',
+        name: 'Dashboard',
+        component: () => import('../views/user/DashboardView.vue'),
+        meta: { requiresAuth: true, title: '服务首页' },
+      },
+      {
+        path: 'products',
+        name: 'Products',
+        component: () => import('../views/user/ProductCatalogView.vue'),
+        meta: { requiresAuth: true, title: '品牌与型号中心' },
+      },
+      {
+        path: 'products/:id',
+        name: 'ProductDetail',
+        component: () => import('../views/user/ProductDetailView.vue'),
+        meta: { requiresAuth: true, title: '型号详情' },
+      },
+      {
+        path: 'knowledge',
+        name: 'KnowledgeCenter',
+        component: () => import('../views/user/KnowledgeCenterView.vue'),
+        meta: { requiresAuth: true, title: '知识中心' },
+      },
+      {
+        path: 'assistant',
+        name: 'Assistant',
+        component: () => import('../views/user/AssistantView.vue'),
+        meta: { requiresAuth: true, title: '智能客服' },
+      },
+      {
+        path: 'diagnosis',
+        name: 'Diagnosis',
+        component: () => import('../views/user/DiagnosisWorkspaceView.vue'),
+        meta: { requiresAuth: true, title: '故障诊断' },
+      },
+      {
+        path: 'diagnosis/:id',
+        name: 'DiagnosisDetail',
+        component: () => import('../views/user/DiagnosisDetailView.vue'),
+        meta: { requiresAuth: true, title: '诊断详情' },
+      },
+      {
+        path: 'tickets',
+        name: 'Tickets',
+        component: () => import('../views/user/TicketListView.vue'),
+        meta: { requiresAuth: true, title: '售后工单' },
+      },
+      {
+        path: 'tickets/:id',
+        name: 'TicketDetail',
+        component: () => import('../views/user/TicketDetailView.vue'),
+        meta: { requiresAuth: true, title: '工单详情' },
+      },
+      {
+        path: 'maintenance',
+        name: 'Maintenance',
+        component: () => import('../views/user/MaintenanceView.vue'),
+        meta: { requiresAuth: true, title: '维护与耗材指南' },
+      },
+      {
+        path: 'history',
+        name: 'History',
+        component: () => import('../views/user/HistoryView.vue'),
+        meta: { requiresAuth: true, title: '我的服务记录' },
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('../views/user/ProfileView.vue'),
+        meta: { requiresAuth: true, title: '个人中心' },
+      },
+      {
+        path: 'admin/dashboard',
+        name: 'AdminDashboard',
+        component: () => import('../views/admin/AdminDashboardView.vue'),
+        meta: { requiresAuth: true, requiresStaff: true, title: '运营概览' },
+      },
+      {
+        path: 'admin/products',
+        name: 'AdminProducts',
+        component: () => import('../views/admin/ModelAdminView.vue'),
+        meta: { requiresAuth: true, roles: ['knowledge_admin', 'system_admin'], title: '品牌型号管理' },
+      },
+      {
+        path: 'admin/knowledge/sources',
+        name: 'AdminSources',
+        component: () => import('../views/admin/KnowledgeSourcesView.vue'),
+        meta: { requiresAuth: true, roles: ['knowledge_admin', 'system_admin'], title: '知识来源管理' },
+      },
+      {
+        path: 'admin/knowledge/import',
+        name: 'AdminImport',
+        component: () => import('../views/admin/KnowledgeImportView.vue'),
+        meta: { requiresAuth: true, roles: ['knowledge_admin', 'system_admin'], title: '文档导入' },
+      },
+      {
+        path: 'admin/knowledge/review',
+        name: 'AdminReview',
+        component: () => import('../views/admin/KnowledgeReviewView.vue'),
+        meta: { requiresAuth: true, roles: ['knowledge_admin', 'system_admin'], title: '知识审核发布' },
+      },
+      {
+        path: 'admin/cases',
+        name: 'AdminCases',
+        component: () => import('../views/admin/RepairCaseAdminView.vue'),
+        meta: { requiresAuth: true, roles: ['knowledge_admin', 'system_admin'], title: '维修案例管理' },
+      },
+      {
+        path: 'admin/tickets',
+        name: 'AdminTickets',
+        component: () => import('../views/admin/TicketAdminView.vue'),
+        meta: { requiresAuth: true, roles: ['agent', 'system_admin'], title: '售后工单管理' },
+      },
+      {
+        path: 'admin/evaluation',
+        name: 'AdminEvaluation',
+        component: () => import('../views/admin/EvaluationView.vue'),
+        meta: { requiresAuth: true, roles: ['knowledge_admin', 'system_admin'], title: '评测中心' },
+      },
+      {
+        path: 'admin/users',
+        name: 'AdminUsers',
+        component: () => import('../views/admin/UserAdminView.vue'),
+        meta: { requiresAuth: true, roles: ['system_admin'], title: '用户与权限' },
+      },
+      {
+        path: 'admin/settings',
+        name: 'AdminSettings',
+        component: () => import('../views/admin/SettingsView.vue'),
+        meta: { requiresAuth: true, roles: ['system_admin'], title: '系统配置与日志' },
+      },
+    ],
   },
-  {
-    path: '/knowledge',
-    name: 'Knowledge',
-    component: () => import('../views/KnowledgeView.vue'),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: '/admin',
-    name: 'Admin',
-    component: () => import('../views/AdminView.vue'),
-    // 同时要求登录和管理员权限
-    meta: { requiresAuth: true, requiresAdmin: true },
-  },
+  { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
 ]
 
-// 创建路由实例
 const router = createRouter({
-  // 使用 HTML5 History 模式（URL 不带 # 号）
-  // 注意：生产环境需要服务器将所有路径回退到 index.html，否则刷新会 404
   history: createWebHistory(),
   routes,
 })
 
-/**
- * 全局前置守卫（beforeEach）
- *
- * 执行时机：在每次路由跳转之前自动执行
- * 执行顺序：to（目标路由）→ 守卫判断 → next（决定是否放行）
- *
- * 工作流程：
- * 1. 用户点击链接或调用 router.push()
- * 2. 触发 beforeEach 守卫
- * 3. 检查目标路由是否需要登录（to.meta.requiresAuth）
- * 4. 如果需要登录但没有 token，重定向到 /login
- * 5. 否则放行，继续加载目标页面
- */
-router.beforeEach((to, from, next) => {
-  // 从浏览器本地存储中获取登录令牌
-  const token = localStorage.getItem('token')
-
-  // 如果目标页面需要登录，但用户没有 token，则跳转到登录页
-  if (to.meta.requiresAuth && !token) {
-    next('/login')
-  } else if (to.meta.requiresAdmin) {
-    // 管理员页面：检查 localStorage 中缓存的用户信息
-    // 注意：这只是前端体验优化，真正的权限校验在后端 API
-    try {
-      const user = JSON.parse(localStorage.getItem('user') || 'null')
-      if (user?.is_admin) {
-        next()
-      } else {
-        next('/')
-      }
-    } catch {
-      next('/')
-    }
-  } else {
-    // 放行，继续路由跳转
-    next()
+function currentRole() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    if (!user) return 'user'
+    if (user.role && user.role !== 'user') return user.role
+    return user.is_admin ? 'system_admin' : 'user'
+  } catch {
+    return 'user'
   }
+}
+
+router.beforeEach((to) => {
+  const token = localStorage.getItem('token')
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+  if (requiresAuth && !token) return '/login'
+  if (token && to.path === '/login') return '/dashboard'
+
+  const role = currentRole()
+  const requiresStaff = to.matched.some((record) => record.meta.requiresStaff)
+  if (requiresStaff && role === 'user') return '/dashboard'
+
+  const roleRule = [...to.matched].reverse().find((record) => record.meta.roles)
+  if (roleRule && !roleRule.meta.roles.includes(role)) return '/dashboard'
+  return true
 })
 
 export default router

@@ -4,13 +4,15 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## 项目简介
 
-IntraAI — 企业内部 AI 知识问答平台。FastAPI 后端 + Vue 3 前端 + MySQL + ChromaDB。通过 OpenAI 兼容接口调用阿里云百炼（DeepSeek / 通义千问）大模型。
+PrintCare — 多品牌多型号打印机售后智能服务平台（基于原 IntraAI 重建）。FastAPI 后端 + Vue 3 前端 + MySQL/SQLite + ChromaDB，通过 OpenAI 兼容接口调用阿里云百炼大模型。
+
+首期覆盖 HP DeskJet 2700、Canon PIXMA TS5300、Epson EcoTank L3250、Brother DCP-T420W 四个系列，六类故障：进纸、供墨、打印质量、连接、电源、扫描。
 
 ## 环境说明
 
 - **开发环境**: Windows 本地开发，CentOS 7 部署服务器
 - **网络**: 国内访问 GitHub / Docker Hub 经常不通，需要用镜像或 SCP 传输
-- 修改代码前先确认当前环境（本地 Windows 还是远程 CentOS）
+- **本地演示**：`.env` 设置 `DATABASE_URL=sqlite:///./intraai.db` 可绕过 MySQL；启动时自动建表并写入种子数据
 - 文件路径含中文时，使用短 8.3 路径或正斜杠
 
 ## 常用命令
@@ -21,28 +23,26 @@ IntraAI — 企业内部 AI 知识问答平台。FastAPI 后端 + Vue 3 前端 +
 # 安装依赖（项目根目录执行）
 cd backend && pip install -r requirements.txt
 
-# 启动开发服务器（项目根目录执行）
+# 启动开发服务器
 cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# 运行全部测试（项目根目录执行）
-python -m pytest backend/tests/ -v --tb=short
+# 本地 SQLite 演示（无需 MySQL）
+cd backend && DATABASE_URL="sqlite:///./intraai.db" SEED_DEMO_DATA=true uvicorn app.main:app --reload --port 8000
 
-# 运行单个测试文件
-python -m pytest backend/tests/api/test_chat.py -v --tb=short
+# 运行全部测试
+python -m pytest backend/tests/ -q --tb=short
 
-# 运行单个测试类或方法
-python -m pytest backend/tests/api/test_chat.py::TestChatEndpoint::test_chat_basic -v
+# 运行平台核心测试
+python -m pytest backend/tests/api/test_platform.py -v --tb=short
 
-# 运行测试并生成覆盖率报告
+# 覆盖率
 python -m pytest backend/tests/ --cov=backend/app --cov-report=term-missing
-
-# 覆盖率阈值: 95%（pyproject.toml 中配置）
 
 # 代码检查
 cd backend && ruff check app/
 cd backend && ruff format app/
 
-# 数据库迁移（Alembic）
+# 数据库迁移
 cd backend && alembic upgrade head
 cd backend && alembic revision --autogenerate -m "描述"
 ```
@@ -51,39 +51,14 @@ cd backend && alembic revision --autogenerate -m "描述"
 
 ```bash
 cd frontend
-
-# 安装依赖
 npm install
-
-# 开发服务器（端口 5173，代理到 localhost:8000 后端）
-npm run dev
-
-# 生产构建
+npm run dev      # 端口 5173，API 指向 localhost:8000
 npm run build
-
-# 代码检查
 npm run lint
-
-# 运行测试（Vitest）
 npm test
 ```
 
-### 快速启动（前后端同时）
-
-```bash
-# Windows 批处理脚本
-start-dev.bat
-# 后端: http://localhost:8000 | 前端: http://localhost:5173 | API 文档: http://localhost:8000/docs
-```
-
-### Docker Compose
-
-```bash
-docker compose up -d              # 启动全部服务（MySQL + 后端 + 前端）
-docker compose down               # 停止并删除容器
-docker compose logs -f            # 查看日志
-docker compose build --no-cache   # 依赖变更后强制重建镜像
-```
+`start-dev.bat` 可同时启动前后端。
 
 ## 架构概览
 
@@ -91,62 +66,79 @@ docker compose build --no-cache   # 依赖变更后强制重建镜像
 
 ```
 app/
-├── api/          # FastAPI 路由层（auth、chat、documents、admin、sessions、knowledge_bases、users）
-├── core/         # 公共基础设施：配置（pydantic-settings）、数据库（SQLAlchemy）、安全（bcrypt + JWT）
-├── models/       # SQLAlchemy ORM 模型（User、Document、KnowledgeBase、Session、Conversation、UsageLog）
-├── schemas/      # Pydantic 请求/响应模型
-└── services/     # 业务逻辑层
-    ├── llm.py                  # OpenAI 兼容 LLM 客户端（chat_completion、chat_completion_stream）
-    ├── rag.py                  # RAG 编排（向量检索 → 上下文拼接 → LLM 生成）
-    ├── langchain_agent.py      # LangChain Agent（工具：rag_search、db_query、web_search）
-    ├── langchain_llm.py        # ChatMiMo 自定义封装，支持 reasoning_content
-    ├── langchain_tools.py      # Agent 工具：知识库检索、SQL 查询、DuckDuckGo 网页搜索
-    ├── embedding.py            # Sentence-transformers 文本向量化
-    ├── vector_store.py         # ChromaDB 向量存储操作
-    └── document_processor.py   # PDF/DOCX/TXT 文本提取与分片
+├── api/              # 路由层
+│   ├── auth.py / users.py        # 注册登录、个人资料
+│   ├── products.py               # 品牌型号、能力、用户设备（含 /api/admin/products）
+│   ├── knowledge.py              # 用户端知识中心（仅已审核/已发布）
+│   ├── assistant.py              # 智能客服会话与 SSE 流式回答
+│   ├── diagnosis.py              # 诊断会话、步骤反馈
+│   ├── tickets.py                # 用户工单 + 客服工单管理
+│   ├── knowledge_admin.py        # 来源、导入、审核、发布、索引
+│   ├── cases.py                  # 维修案例管理
+│   ├── evaluation.py             # 评测中心
+│   ├── admin_platform.py         # 驾驶舱、配置、审计、检索日志
+│   ├── admin.py                  # 旧版用户管理（兼容保留）
+│   └── chat.py 等                # 旧版通用知识库/聊天接口（兼容保留）
+├── domains/printer/  # registry（型号解析）、capabilities、fault_taxonomy、safety_policy
+├── core/             # 配置、数据库、JWT + bcrypt
+├── models/           # 品牌型号/知识/诊断/工单/客服/评测/审计
+├── schemas/          # Pydantic 请求响应
+├── services/
+│   ├── printer_rag_service.py    # 硬过滤 + 向量/BM25 + RRF + 重排 + Evidence Gate
+│   ├── diagnosis_service.py      # 诊断状态机
+│   ├── knowledge_ingestion.py    # 文件解析、切片、结构化草稿
+│   ├── knowledge_review.py       # 审核、发布、索引、回滚
+│   ├── ticket_service.py         # 工单流转与脱敏
+│   ├── evaluation_service.py     # 真实检索指标计算
+│   ├── audit_service.py          # 审计日志
+│   └── vector_store.py / embedding.py / reranker.py / llm.py  # 基础能力
+└── seed.py           # 幂等种子数据（4 品牌 / 9 型号 / 24 条知识 / 5 个测试集）
 ```
 
 ### 核心数据流
 
-1. **对话（RAG 模式）**: 用户提问 → 向量化 → ChromaDB 检索 → 上下文 + 问题 → LLM → 回答
-2. **对话（Agent 模式）**: 用户提问 → LangChain Agent → 自动选择工具（知识库/数据库/网页） → LLM → 回答
-3. **文档上传**: 文件 → 提取文本 → 分片 → 向量化 → 存入 ChromaDB
-4. **会话管理**: 对话记录存 MySQL；超过 20 轮自动摘要压缩（保留最近 5 轮，删除前 15 轮）
+1. **智能客服**：问题 → 识别型号/错误码/故障类别 → 型号+品类硬过滤 → 向量+BM25 → RRF → CrossEncoder → Evidence Gate → LLM（失败时模板回退）→ 带来源回答
+2. **故障诊断**：确认型号 → 校验支持状态与能力 → 检索 → 生成 L1/L2 步骤 → 一次一条 → 用户反馈 → 下一条或转人工
+3. **知识发布**：来源登记 → 导入解析 → 待审核草稿 → 审核通过 → 发布 → 写入 Chroma；未发布知识不参与检索
+4. **工单**：诊断/用户确认 → 建单（携带步骤与证据）→ 分配 → 处理 → 关闭；用户与客服权限隔离
 
 ### 前端结构 (`frontend/src/`)
 
-- **页面**: LoginView（登录）、ChatView（主对话）、KnowledgeView（文档管理）、AdminView（用户/统计）
-- **API 层**: Axios 实例，自动注入 token，401 时跳转登录页（`src/api/index.js`）
-- **状态管理**: Pinia 存储登录态（`src/stores/auth.js`）
-- **路由**: Vue Router + 路由守卫；`/admin` 需要管理员权限
+- **布局**: `components/PlatformLayout.vue` 按角色显示用户端/运营端导航
+- **用户页面**: `views/user/` — Dashboard、ProductCatalog、ProductDetail、KnowledgeCenter、Assistant、DiagnosisWorkspace、DiagnosisDetail、TicketList/Detail、Maintenance、History、Profile
+- **管理页面**: `views/admin/` — Dashboard、ModelAdmin、KnowledgeSources/Import/Review、RepairCaseAdmin、TicketAdmin、Evaluation、UserAdmin、Settings
+- **API**: `src/api/*.js`，Axios 自动注入 token；SSE 由 `assistant.js` 的 `streamMessage` 处理
+- **路由**: `src/router/index.js` 使用嵌套路由 + 角色守卫
 
-### 配置管理
+### 角色与权限
 
-- **后端配置**: `app/core/config.py` — pydantic-settings 自动从 `.env` 和环境变量读取
-- **关键环境变量**: `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`、`MYSQL_*`、`SECRET_KEY`、`UPLOAD_DIR`、`CHROMA_DIR`
-- **前端配置**: 开发模式 Vite 代理；Docker 生产环境 Nginx 反向代理
+`user` / `agent`（客服）/ `knowledge_admin`（知识管理员）/ `system_admin`（系统管理员）。旧 `is_admin=True` 视为 `system_admin`。后端依赖：`get_staff`、`get_knowledge_manager`、`get_support_staff`、`get_system_admin`。
+
+### 配置
+
+- `app/core/config.py`：`DATABASE_URL` 为空时由 `MYSQL_*` 拼接；`SEED_DEMO_DATA` 控制启动种子；`AUTO_INDEX_SEED` 控制启动时构建向量索引；`ENABLE_LEGACY_AGENT` 默认 False（旧版 SQL Agent 已停用）
+- 关键环境变量：`OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`、`MYSQL_*`、`SECRET_KEY`、`UPLOAD_DIR`、`CHROMA_DIR`
 
 ## 开发规范
 
 - 每次只改一个文件，验证通过后再改下一个
-- 改完后验证完整流程：注册 → 登录 → 使用核心功能，每步检查日志
-- 安装包时带全依赖（不要用 `--no-deps`），安装后验证 import 是否正常
-
-## 部署注意事项
-
-- 远程服务器可能没有 `.env` 文件，部署前先检查
-- Docker 镜像看起来没更新时，用 `--no-cache` 重建
-- 部署后必须测试完整用户流程再宣告成功
+- 业务规则放在领域服务（`domains/printer`、`services`），不要全部塞进 prompt
+- 不重写底层 vector store；通过 metadata filter 与查询路径扩展
+- 知识必须有来源、适用范围、步骤、安全提示才允许发布
+- 品牌错误码不得跨品牌映射；型号未知的社区案例不得转化为型号结论
+- 改完后验证完整流程：注册 → 登录 → 选型号 → 客服/诊断 → 工单；每步检查日志
 
 ## 测试约定
 
-- 测试使用 SQLite 内存数据库（CI 无需 MySQL）
-- 外部依赖全部 mock：LLM API（`app.services.llm.client`）、ChromaDB、sentence-transformers
-- conftest.py 提供 fixtures：`client`（TestClient）、`test_user`/`test_admin`、`user_headers`/`admin_headers`、`mock_llm`、`mock_embeddings`、`mock_vector_store`
+- 使用 SQLite 内存数据库；`conftest.py` 提供 `client`、`test_user`/`test_admin`、`user_headers`/`admin_headers`
+- `tests/api/test_platform.py` 使用 `seeded` fixture + `platform_env` 隔离 embedding/reranker/LLM/Chroma
+- 外部依赖全部 mock；保留旧版测试（326 条）确保兼容接口不回归
 - pytest 配置：`asyncio_mode = "auto"`、`pythonpath = ["backend"]`、`testpaths = ["backend/tests"]`
 
-## 代码质量
+## 部署注意事项
 
-- Python: ruff 做 lint 和格式化（目标 py311，行宽 100）
-- JavaScript/Vue: ESLint + vue 插件
-- Pydantic schemas 使用 `orm_mode = True` 做 SQLAlchemy 模型序列化（class-based config 已弃用，可迁移至 `ConfigDict`）
+- 远程服务器可能没有 `.env`，部署前先检查
+- MySQL 部署启动时自动 `alembic upgrade head`；SQLite 模式直接 `create_all`
+- Docker 镜像像没更新时用 `--no-cache` 重建
+- 部署后必须测试完整用户流程再宣告成功
+- 演示种子数据是人工整理知识（C 级）关联官方来源（A 级），不能当作官方手册原文使用

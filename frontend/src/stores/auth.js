@@ -45,7 +45,7 @@
  *   authStore.logout()
  */
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { login as loginApi, register as registerApi, getMe } from '../api/auth'
 
 // 定义 auth store，使用组合式 API 风格（setup function）
@@ -63,7 +63,17 @@ export const useAuthStore = defineStore('auth', () => {
    * 当前登录用户信息
    * null 表示尚未获取用户信息
    */
-  const user = ref(null)
+  const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
+
+  // --- 角色派生状态 ---
+  const role = computed(() => {
+    if (user.value?.role && user.value.role !== 'user') return user.value.role
+    return user.value?.is_admin ? 'system_admin' : 'user'
+  })
+  const isStaff = computed(() => role.value !== 'user')
+  const canKnowledge = computed(() => ['knowledge_admin', 'system_admin'].includes(role.value))
+  const canSupport = computed(() => ['agent', 'system_admin'].includes(role.value))
+  const canSystem = computed(() => role.value === 'system_admin')
 
   // --- 方法 ---
 
@@ -122,5 +132,17 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 返回所有需要暴露的状态和方法
   // 只有返回的内容才能在组件中通过 store 实例访问
-  return { token, user, login, register, fetchUser, logout }
+  return {
+    token,
+    user,
+    role,
+    isStaff,
+    canKnowledge,
+    canSupport,
+    canSystem,
+    login,
+    register,
+    fetchUser,
+    logout,
+  }
 })

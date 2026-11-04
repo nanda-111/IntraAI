@@ -15,6 +15,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _enable_legacy_agent(monkeypatch):
+    """旧版 Agent 默认关闭；这些兼容性测试显式开启。"""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "ENABLE_LEGACY_AGENT", True)
+
+
 # ============================================================
 # POST /api/chat/
 # ============================================================
@@ -106,6 +114,19 @@ class TestChatEndpoint:
 
         assert res.status_code == 200
         mock_title.assert_called_once()
+
+    def test_legacy_agent_can_be_disabled(self, client, user_headers, monkeypatch):
+        """默认配置下旧版 Agent 模式应被拒绝。"""
+        from app.core.config import settings
+
+        monkeypatch.setattr(settings, "ENABLE_LEGACY_AGENT", False)
+        res = client.post(
+            "/api/chat/",
+            json={"question": "问题", "mode": "agent"},
+            headers=user_headers,
+        )
+        assert res.status_code == 403
+        assert "已停用" in res.json()["detail"]
 
     def test_chat_agent_mode(self, client, user_headers):
         """Agent 模式对话"""

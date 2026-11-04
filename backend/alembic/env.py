@@ -29,7 +29,7 @@ config = context.config
 
 # 使用项目的数据库连接串覆盖 alembic.ini 中的 sqlalchemy.url
 # 这样只需在项目的 .env 文件中维护一份数据库配置
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

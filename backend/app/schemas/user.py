@@ -69,6 +69,9 @@ class UserOut(BaseModel):
     id: int  # 用户 ID（数据库自增主键）
     username: str  # 用户名
     email: str  # 邮箱地址
+    display_name: str | None = None
+    phone: str | None = None
+    role: str = "user"
     is_admin: bool  # 是否为管理员
     is_active: bool  # 账户是否激活
     created_at: datetime  # 账户创建时间
@@ -96,3 +99,24 @@ class Token(BaseModel):
     access_token: str  # JWT 访问令牌
     token_type: str = "bearer"  # 令牌类型，默认为 "bearer"
     user: UserOut  # 登录用户的完整信息
+
+
+class UserUpdate(BaseModel):
+    """用户个人资料更新。"""
+
+    display_name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+
+
+class AdminUserUpdate(BaseModel):
+    """管理员更新用户角色与状态。"""
+
+    role: str | None = None
+    is_active: bool | None = None
+    is_admin: bool | None = None
+
+
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str

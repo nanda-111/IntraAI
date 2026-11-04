@@ -208,3 +208,39 @@ def mock_document_processor(monkeypatch):
     with patch("app.services.document_processor.extract_text", return_value="测试文本内容"):
         with patch("app.services.document_processor.split_text", return_value=["切片1", "切片2"]):
             yield
+
+
+@pytest.fixture
+def seeded(db_session):
+    """写入首期演示数据集（幂等）。"""
+    from app.seed import seed_all
+
+    seed_all(db_session)
+    return db_session
+
+
+@pytest.fixture
+def platform_env(monkeypatch):
+    """隔离平台检索外部依赖：embedding、向量召回、reranker、LLM 与索引写入。"""
+    from app.services import printer_rag_service as rag
+
+    def fake_embeddings(texts):
+        return [[0.1] * 768 for _ in texts]
+
+    def fake_rerank(question, candidates, top_k=5):
+        return [(text, meta, 0.9) for text, meta in candidates[:top_k]]
+
+    def fake_completion(messages, model=None, temperature=0.3):
+        return "", "根据已审核资料：请按下列步骤检查。"
+
+    def fake_stream(messages, model=None, temperature=0.3):
+        yield {"type": "answer", "content": "根据已审核资料："}
+        yield {"type": "answer", "content": "请按步骤检查。"}
+
+    monkeypatch.setattr(rag, "get_embeddings", fake_embeddings)
+    monkeypatch.setattr(rag, "_vector_hits", lambda *args, **kwargs: [])
+    monkeypatch.setattr(rag, "chat_completion", fake_completion)
+    monkeypatch.setattr(rag, "chat_completion_stream", fake_stream)
+    monkeypatch.setattr(rag, "index_knowledge", lambda db, item: True)
+    monkeypatch.setattr("app.services.reranker.rerank", fake_rerank)
+    return rag

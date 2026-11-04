@@ -1,97 +1,80 @@
-# IntraAI
+# PrintCare · 多品牌打印机售后智能服务平台
 
-企业内部 AI 知识问答平台 — 上传文档，即刻问答。
+面向家用喷墨打印机的售后服务平台：先确认品牌与具体型号，再提供型号感知的知识检索、智能客服、有状态分步诊断、售后工单、知识运营与质量评测。
 
-IntraAI 是一个基于 RAG（检索增强生成）的企业知识库系统，支持文档上传、智能问答、会话管理和多用户协作。通过混合检索（向量 + BM25）和 CrossEncoder 重排序，实现高精度的文档问答。
+基于原 IntraAI 的 Vue 3 + FastAPI + MySQL + ChromaDB + LangChain 技术底座重建，保留通用知识库/聊天接口作为迁移期兼容能力，主流程改为打印机售后业务。
 
-## 功能特性
+## 首期范围
 
-- **智能问答** — 基于上传文档的 RAG 问答，支持流式输出
-- **混合检索** — 向量相似度 + BM25 关键词匹配 + CrossEncoder 重排序，三阶段检索保障精度
-- **Agent 模式** — LangChain Agent 自动选择工具（知识库检索 / 数据库查询 / 网页搜索）
-- **文档管理** — 支持 PDF、DOCX、TXT、PPTX、XLSX 等格式的上传与解析
-- **多知识库** — 支持创建多个知识库，按业务场景分类管理文档
-- **会话管理** — 多轮对话、历史记录、自动摘要压缩（超过 20 轮自动压缩）
-- **用户系统** — 注册 / 登录 / JWT 认证 / 管理员权限控制
-- **管理后台** — 用户管理、使用统计、系统概览
-- **企业级 UI** — 基于 Ant Design Vue 的响应式界面
+| 品牌 | 代表型号系列 | 代码体系 |
+|------|--------------|----------|
+| HP | DeskJet 2700 系列 | HP 错误代码/指示灯 |
+| Canon | PIXMA TS5300 系列 | Canon Support Code |
+| Epson | EcoTank L3250 系列 | Epson 指示灯组合/消息 |
+| Brother | DCP-T420W 系列 | Brother LED/消息 |
+
+首期覆盖六类故障：进纸与卡纸、墨盒与供墨、打印质量、连接与网络、电源与开机、扫描与复印。
+
+平台不连接打印机硬件、不读取传感器、不提供拆机/电源/电路板自助维修步骤。涉及 L3 高风险操作时停止自动指导并建议转人工。
+
+## 核心能力
+
+- **品牌型号注册中心** — 品牌、系列、具体型号、别名、地区版本、能力映射与支持状态（planned/building/pilot/active/suspended）。
+- **型号感知 RAG** — 审核状态/品牌/型号/地区硬过滤 → Chroma 向量召回 + BM25 → RRF 融合 → CrossEncoder 重排 → Evidence Gate → 带来源回答。
+- **智能客服** — 会话承载型号上下文，自动识别型号、错误码与故障类别；SSE 流式回答，展示引用与安全提示。
+- **故障诊断状态机** — `MODEL_PENDING → COLLECTING → RETRIEVING → STEP_READY → WAIT_USER_ACTION → RESOLVED/ESCALATED`，一次只推送一条步骤。
+- **售后工单** — 用户确认后建单，携带型号、现象、已执行步骤和证据；客服分配、处理、备注与关闭。
+- **知识运营** — 来源登记、PDF/DOCX/TXT/MD/HTML/JSON 导入、审核、发布、索引同步、版本回滚。
+- **维修案例** — 社区/人工案例独立管理，明确标注“不是官方维修步骤”。
+- **评测中心** — 按品牌/型号维护测试集，真实计算 Recall@5、MRR@5、故障分类准确率、转人工召回率与耗时。
+- **RBAC** — 普通用户 / 客服人员 / 知识库管理员 / 系统管理员；关键操作写审计日志。
 
 ## 技术栈
 
 | 层级 | 技术 |
 |------|------|
-| **前端** | Vue 3 + Vite + Ant Design Vue + Pinia + Vue Router |
-| **后端** | FastAPI + SQLAlchemy + Alembic + Pydantic |
-| **数据库** | MySQL 8.0（业务数据）+ ChromaDB（向量存储） |
-| **AI/ML** | OpenAI 兼容 API（阿里云百炼 / DeepSeek）+ Sentence-Transformers + LangChain |
-| **检索** | 向量检索（ChromaDB）+ BM25（rank-bm25 + jieba）+ CrossEncoder 重排序 |
-| **部署** | Docker Compose + Nginx 反向代理 |
-| **CI/CD** | GitHub Actions（Lint → Test → Build） |
+| 前端 | Vue 3 + Vite + Ant Design Vue + Pinia + Vue Router |
+| 后端 | FastAPI + SQLAlchemy + Alembic + Pydantic |
+| 数据 | MySQL 8.0（业务数据）+ ChromaDB（向量）+ 本地文件（原始资料）|
+| AI | OpenAI 兼容接口（阿里云百炼 DeepSeek）+ sentence-transformers + bge-reranker |
+| 检索 | Chroma 向量 + BM25（jieba / rank-bm25）+ RRF + CrossEncoder |
+| 部署 | Docker Compose + Nginx |
 
 ## 项目结构
 
 ```
-IntraAI/
-├── backend/                    # Python 后端
-│   ├── app/
-│   │   ├── api/                # FastAPI 路由（auth、chat、documents、admin、sessions、knowledge_bases、users）
-│   │   ├── core/               # 基础设施：配置、数据库、安全（JWT + bcrypt）
-│   │   ├── models/             # SQLAlchemy ORM 模型
-│   │   ├── schemas/            # Pydantic 请求/响应模型
-│   │   └── services/           # 业务逻辑
-│   │       ├── llm.py                  # OpenAI 兼容 LLM 客户端
-│   │       ├── rag.py                  # RAG 编排（检索 → 重排序 → 生成）
-│   │       ├── langchain_agent.py      # LangChain Agent
-│   │       ├── langchain_tools.py      # Agent 工具集
-│   │       ├── embedding.py            # 文本向量化
-│   │       ├── vector_store.py         # ChromaDB + BM25 混合检索
-│   │       ├── reranker.py             # CrossEncoder 重排序
-│   │       └── document_processor.py   # 文档解析与分片
-│   ├── tests/                  # 单元测试（pytest，覆盖率 ≥ 95%）
-│   ├── eval/                   # RAG 效果评估框架（RAGAS）
-│   ├── alembic/                # 数据库迁移
-│   ├── requirements.txt
-│   └── Dockerfile
-├── frontend/                   # Vue 3 前端
-│   ├── src/
-│   │   ├── views/              # 页面组件（Login、Chat、Knowledge、Admin）
-│   │   ├── components/         # 通用组件（AppLayout、ChatMessage）
-│   │   ├── api/                # Axios HTTP 客户端
-│   │   ├── stores/             # Pinia 状态管理
-│   │   └── router/             # Vue Router 路由配置
-│   ├── nginx.conf              # 生产环境 Nginx 配置
-│   └── Dockerfile              # 多阶段构建（Node → Nginx）
-├── docker-compose.yml          # 一键编排（MySQL + Backend + Frontend）
-├── .github/workflows/ci.yml    # CI 流水线
-└── pyproject.toml              # Ruff + Pytest 配置
+backend/app/
+├── api/                  # auth/users/products/knowledge/assistant/diagnosis/tickets/
+│                         # knowledge_admin/cases/evaluation/admin_platform/admin
+├── domains/printer/      # registry、capabilities、fault_taxonomy、safety_policy
+├── models/               # 品牌型号、知识、诊断、工单、会话、评测、审计
+├── schemas/              # 请求/响应模型
+├── services/
+│   ├── printer_rag_service.py    # 型号感知检索、证据校验、受控回答
+│   ├── diagnosis_service.py      # 诊断状态机
+│   ├── knowledge_ingestion.py    # 导入解析与知识草稿
+│   ├── knowledge_review.py       # 审核发布与索引
+│   ├── ticket_service.py         # 工单状态流转
+│   ├── evaluation_service.py     # 评测指标
+│   └── audit_service.py          # 审计日志
+└── seed.py               # 首期演示数据（4 品牌 / 9 型号 / 24 条知识）
+
+frontend/src/
+├── components/           # PlatformLayout、PageHeader、ModelSelect、StatusTag、SourceList
+├── views/user/           # 首页、品牌型号、知识中心、智能客服、诊断、工单、维护、历史、个人中心
+└── views/admin/          # 运营概览、型号、知识来源/导入/审核、案例、工单、评测、用户、设置
 ```
 
 ## 快速开始
 
-### 前置条件
+### 方式一：本地 SQLite 演示（最快）
 
-- Python 3.11+
-- Node.js 20+
-- MySQL 8.0（或使用 Docker Compose 自动启动）
-- 阿里云百炼 API Key（[控制台](https://platform.qianwenai.com)）
-
-### 方式一：本地开发
-
-**1. 克隆项目**
+在项目根目录 `.env` 中加入：
 
 ```bash
-git clone <repo-url> IntraAI
-cd IntraAI
+DATABASE_URL=sqlite:///./intraai.db
+SEED_DEMO_DATA=true
 ```
-
-**2. 配置环境变量**
-
-```bash
-cp .env.example .env
-# 编辑 .env，填入你的 OPENAI_API_KEY
-```
-
-**3. 启动后端**
 
 ```bash
 cd backend
@@ -99,7 +82,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**4. 启动前端**
+另开终端：
 
 ```bash
 cd frontend
@@ -107,157 +90,88 @@ npm install
 npm run dev
 ```
 
-**5. 访问应用**
+访问 http://localhost:5173 。首次注册的账号自动成为系统管理员。启动时会自动建表并写入演示品牌、型号、知识、案例和评测集。
 
-| 服务 | 地址 |
-|------|------|
-| 前端页面 | http://localhost:5173 |
-| 后端 API | http://localhost:8000 |
-| API 文档 | http://localhost:8000/docs |
+> 向量索引默认不自动构建；检索会自动回退到数据库关键词召回。登录后在「系统配置 → 重建知识索引」可构建 Chroma 索引。
 
-> Windows 用户可直接运行 `start-dev.bat` 一键启动前后端。
-
-### 方式二：Docker Compose
+### 方式二：MySQL + Docker Compose
 
 ```bash
-# 配置环境变量
 cp .env.example .env
-# 编辑 .env，填入 OPENAI_API_KEY
-
-# 一键启动
+# 填入 OPENAI_API_KEY
 docker compose up -d
-
-# 查看日志
-docker compose logs -f
-
-# 停止服务
-docker compose down
 ```
 
-启动后访问 http://localhost 即可（前端 80 端口，Nginx 反向代理到后端）。
+访问 http://localhost 。后端启动时执行 Alembic 迁移并写入演示数据。
 
 ## 环境变量
 
-在项目根目录创建 `.env` 文件：
-
 ```bash
-# 大模型 API 配置（必填，阿里云百炼 / 通义千问 OpenAI 兼容接口）
-OPENAI_API_KEY=sk-your-key-here
+OPENAI_API_KEY=sk-...
 OPENAI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 OPENAI_MODEL=deepseek-v4.1-flash-1017
 
-# 以下为可选配置（已有默认值）
-# MYSQL_HOST=localhost
-# MYSQL_PORT=3306
-# MYSQL_USER=root
-# MYSQL_PASSWORD=
-# MYSQL_DB=intraai
-# SECRET_KEY=your-random-secret-key
-# UPLOAD_DIR=./uploads
-# CHROMA_DIR=./chroma_data
+# MySQL（Docker 部署必填）
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your-password
+MYSQL_DB=intraai
+
+# 可选：直接指定连接串（SQLite 演示）
+# DATABASE_URL=sqlite:///./intraai.db
+
+SECRET_KEY=change-me
+UPLOAD_DIR=./uploads
+CHROMA_DIR=./chroma_data
+SEED_DEMO_DATA=true
+AUTO_INDEX_SEED=false
+
+# 旧版 LangChain Agent（含通用 SQL 查询工具）默认停用
+ENABLE_LEGACY_AGENT=false
 ```
 
-> **安全提示**：生产环境务必修改 `SECRET_KEY` 为随机长字符串，不要使用默认值。
+> `SECRET_KEY` 生产环境必须替换为随机长字符串。API Key 仅从环境变量读取，不会返回前端。
 
-## 核心数据流
+## 主要 API
 
-### RAG 问答模式
+所有业务接口使用 `/api` 前缀；`/api/admin/*` 按角色鉴权。
 
-```
-用户提问 → 文本向量化 → 混合检索（向量 + BM25，50 候选）
-         → CrossEncoder 重排序（Top 5）→ 上下文拼接 → LLM 生成回答
-```
+| 模块 | 代表接口 |
+|------|----------|
+| 品牌型号 | `GET /api/products/brands`、`GET /api/products/models`、`GET /api/products/models/{id}`、`GET/POST /api/products/devices` |
+| 知识中心 | `GET /api/knowledge`、`GET /api/knowledge/{doc_id}` |
+| 智能客服 | `POST /api/assistant/sessions`、`POST /api/assistant/sessions/{id}/messages`、`.../messages/stream` |
+| 故障诊断 | `POST /api/diagnosis/sessions`、`POST .../messages`、`POST .../steps/{step_id}/result` |
+| 工单 | `POST/GET /api/tickets`、`GET /api/admin/tickets`、`PUT /api/admin/tickets/{id}` |
+| 知识运营 | `POST /api/admin/knowledge/import`、`POST /api/admin/knowledge/{doc_id}/review` |
+| 评测 | `GET/POST /api/admin/evaluation/datasets`、`POST .../datasets/{id}/run` |
+| 运营 | `GET /api/admin/dashboard`、`GET /api/admin/settings`、`GET /api/admin/audit-logs` |
 
-### Agent 模式
+完整接口见 http://localhost:8000/docs 。
 
-```
-用户提问 → LangChain Agent → 自动选择工具
-         ├─ 知识库检索（RAG）
-         ├─ 数据库查询（SQL）
-         └─ 网页搜索（DuckDuckGo）
-         → LLM 综合回答
-```
-
-### 文档处理流程
-
-```
-文件上传 → 文本提取（PyMuPDF / python-docx）→ 智能分片
-        → 文本向量化 → 存入 ChromaDB
-```
-
-## 开发命令
-
-### 后端
+## 测试与质量
 
 ```bash
-# 安装依赖
-cd backend && pip install -r requirements.txt
-
-# 启动开发服务器
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# 运行测试
+# 后端（SQLite 内存库，外部依赖 mock）
 python -m pytest backend/tests/ -v --tb=short
 
-# 运行测试 + 覆盖率报告
-python -m pytest backend/tests/ --cov=backend/app --cov-report=term-missing
-
-# 代码检查与格式化
-ruff check app/
-ruff format app/
-
-# 数据库迁移
-alembic upgrade head
-alembic revision --autogenerate -m "描述"
-```
-
-### 前端
-
-```bash
-cd frontend
-
-# 安装依赖
-npm install
-
-# 开发服务器
-npm run dev
-
-# 生产构建
-npm run build
+# 前端
+cd frontend && npm test && npm run lint && npm run build
 
 # 代码检查
-npm run lint
-
-# 运行测试
-npm test
+ruff check backend/app
+ruff format backend/app
 ```
 
-## 测试
+- 启动脚本：`start-dev.bat`
+- 数据库迁移：`cd backend && alembic upgrade head`
+- 新迁移：`cd backend && alembic revision --autogenerate -m "描述"`
 
-- **后端**：pytest + SQLite 内存数据库，外部依赖全部 mock（LLM API、ChromaDB、sentence-transformers）
-- **前端**：Vitest + Vue Test Utils
-- **覆盖率阈值**：95%（`pyproject.toml` 中配置）
-- **CI**：GitHub Actions 自动执行 Lint → Test → Build
+## 安全边界
 
-## 部署
-
-### Docker Compose（推荐）
-
-```bash
-docker compose up -d
-```
-
-包含三个服务：MySQL（数据持久化） + Backend（FastAPI） + Frontend（Nginx），数据卷自动管理。
-
-### 手动部署
-
-1. 配置 MySQL 数据库，创建 `intraai` 数据库
-2. 配置 `.env` 文件
-3. 启动后端：`uvicorn app.main:app --host 0.0.0.0 --port 8000`
-4. 构建前端：`npm run build`，将 `dist/` 部署到 Nginx
-
-> 部署后务必测试完整流程：注册 → 登录 → 上传文档 → 提问。
-
-## 许可证
-
-本项目为内部使用项目，暂未设定开源许可证。
+- LLM 不执行任意 SQL、Shell、Python 或远程设备控制。
+- 维修步骤必须来自已审核知识；Evidence Gate 校验型号范围、来源等级、步骤完整性、有效期和安全标记。
+- 社区案例与官方知识分离，不进入正式维修步骤检索。
+- 用户诊断、会话、工单按 `user_id` 隔离；客服查看联系方式默认脱敏。
+- 日志记录型号过滤条件、召回证据 ID、工具调用与状态，不记录不必要的敏感全文。

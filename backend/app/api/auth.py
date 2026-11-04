@@ -25,6 +25,7 @@ def register(data: UserCreate, db: Session = Depends(get_db)):
         email=data.email,
         hashed_password=hash_password(data.password),
         is_admin=is_first,
+        role="system_admin" if is_first else "user",
     )
     db.add(user)
     db.commit()

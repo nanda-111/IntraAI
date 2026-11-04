@@ -1,6 +1,7 @@
 """管理后台 API，所有接口需要管理员权限。"""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_admin_user
@@ -11,8 +12,15 @@ from app.models.knowledge_base import KnowledgeBase
 from app.models.usage_log import UsageLog
 from app.models.user import User
 from app.schemas.user import UserOut
+from app.services.audit_service import log_action
 
 router = APIRouter(prefix="/api/admin", tags=["管理后台"], dependencies=[Depends(get_admin_user)])
+
+ROLE_VALUES = {"user", "agent", "knowledge_admin", "system_admin"}
+
+
+class RoleUpdate(BaseModel):
+    role: str
 
 
 @router.get("/users", response_model=list[UserOut])
@@ -22,25 +30,86 @@ def list_users(db: Session = Depends(get_db)):
 
 
 @router.put("/users/{user_id}/toggle")
-def toggle_user(user_id: int, db: Session = Depends(get_db)):
+def toggle_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user),
+):
     """启用/禁用用户（切换 is_active 状态）"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
+    before = user.is_active
     user.is_active = not user.is_active
     db.commit()
+    log_action(
+        db,
+        current_user,
+        "user.toggle_active",
+        "user",
+        user.id,
+        before={"is_active": before},
+        after={"is_active": user.is_active},
+    )
     return {"id": user.id, "is_active": user.is_active}
 
 
 @router.put("/users/{user_id}/admin")
-def toggle_admin(user_id: int, db: Session = Depends(get_db)):
+def toggle_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user),
+):
     """设置/取消管理员（切换 is_admin 状态）"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
+    before = user.is_admin
     user.is_admin = not user.is_admin
+    if user.is_admin:
+        user.role = "system_admin"
+    elif user.role == "system_admin":
+        user.role = "user"
     db.commit()
-    return {"id": user.id, "is_admin": user.is_admin}
+    log_action(
+        db,
+        current_user,
+        "user.toggle_admin",
+        "user",
+        user.id,
+        before={"is_admin": before},
+        after={"is_admin": user.is_admin, "role": user.role},
+    )
+    return {"id": user.id, "is_admin": user.is_admin, "role": user.role}
+
+
+@router.put("/users/{user_id}/role")
+def set_user_role(
+    user_id: int,
+    data: RoleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user),
+):
+    """设置用户运营角色（RBAC）。"""
+    if data.role not in ROLE_VALUES:
+        raise HTTPException(status_code=400, detail="无效的角色")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    before = user.role
+    user.role = data.role
+    user.is_admin = data.role == "system_admin"
+    db.commit()
+    log_action(
+        db,
+        current_user,
+        "user.set_role",
+        "user",
+        user.id,
+        before={"role": before},
+        after={"role": user.role},
+    )
+    return {"id": user.id, "role": user.role, "is_admin": user.is_admin}
 
 
 @router.get("/knowledge-bases")

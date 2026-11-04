@@ -3,13 +3,13 @@
     <div class="login-left">
       <div class="brand">
         <div class="brand-logo">
-          AI
+          PC
         </div>
         <h1 class="brand-name">
-          IntraAI
+          PrintCare
         </h1>
         <p class="brand-tagline">
-          企业级智能知识助手平台
+          多品牌打印机售后智能服务平台
         </p>
       </div>
       <div class="brand-features">
@@ -24,7 +24,7 @@
             <path d="M2 17l10 5 10-5" />
             <path d="M2 12l10 5 10-5" />
           </svg>
-          <span>RAG 知识检索增强</span>
+          <span>型号感知官方知识检索</span>
         </div>
         <div class="feature-item">
           <svg
@@ -35,7 +35,7 @@
           >
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-          <span>多轮对话上下文理解</span>
+          <span>有状态的分步故障诊断</span>
         </div>
         <div class="feature-item">
           <svg
@@ -54,7 +54,7 @@
             <path d="M3 9h18" />
             <path d="M9 21V9" />
           </svg>
-          <span>多格式文档智能解析</span>
+          <span>审核发布与来源追溯</span>
         </div>
       </div>
     </div>
@@ -65,7 +65,7 @@
           {{ isLogin ? '欢迎回来' : '创建账号' }}
         </h2>
         <p class="login-subtitle">
-          {{ isLogin ? '登录以继续使用' : '注册以开始使用 IntraAI' }}
+          {{ isLogin ? '登录以继续使用' : '注册以开始使用 PrintCare' }}
         </p>
 
         <a-form
@@ -160,7 +160,7 @@ async function handleSubmit() {
     if (isLogin.value) {
       await authStore.login({ username: form.username, password: form.password })
       message.success('登录成功')
-      router.push('/')
+      router.push('/dashboard')
     } else {
       await authStore.register(form)
       message.success('注册成功，请登录')

@@ -19,3 +19,4 @@ duckduckgo-search>=7.0.0
 alembic>=1.14.0
 rank-bm25>=0.2.2
 jieba>=0.42.1
+sentence-transformers>=3.0.0

@@ -11,6 +11,7 @@ import { createPinia } from 'pinia'
 import Antd from 'ant-design-vue'
 // 引入 Ant Design Vue 的重置样式，统一各浏览器的默认样式
 import 'ant-design-vue/dist/reset.css'
+import './style.css'
 import App from './App.vue'
 // 引入路由配置
 import router from './router'

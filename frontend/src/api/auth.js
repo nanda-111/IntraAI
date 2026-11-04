@@ -36,3 +36,13 @@ export function login(data) {
 export function getMe() {
   return api.get('/api/users/me')
 }
+
+/** 更新个人资料 */
+export function updateMe(data) {
+  return api.put('/api/users/me', data)
+}
+
+/** 修改密码 */
+export function changePassword(data) {
+  return api.put('/api/users/me/password', data)
+}
