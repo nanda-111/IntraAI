@@ -211,11 +211,9 @@ const selectedKb = ref(null)
 const kbOptions = ref([])
 const messagesRef = ref(null)
 const useStream = ref(true)
-const selectedModel = ref('mimo-v2.5-pro')
+const selectedModel = ref('deepseek-v4.1-flash-1017')
 const modelOptions = [
-  { label: 'MiMo v2.5 Pro', value: 'mimo-v2.5-pro' },
-  { label: 'MiMo v2 Pro', value: 'mimo-v2-pro' },
-  { label: 'MiMo v2 Lite', value: 'mimo-v2-lite' },
+  { label: 'DeepSeek V4.1 Flash', value: 'deepseek-v4.1-flash-1017' },
 ]
 
 const sessions = ref([])

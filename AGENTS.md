@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## 项目简介
 
-IntraAI — 企业内部 AI 知识问答平台。FastAPI 后端 + Vue 3 前端 + MySQL + ChromaDB。通过 OpenAI 兼容接口调用小米 MiMo 大模型。
+IntraAI — 企业内部 AI 知识问答平台。FastAPI 后端 + Vue 3 前端 + MySQL + ChromaDB。通过 OpenAI 兼容接口调用阿里云百炼（DeepSeek / 通义千问）大模型。
 
 ## 环境说明
 

@@ -8,17 +8,14 @@
 
 import logging
 import os
-from pathlib import Path
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# 同 embedding.py：必须在首次 import huggingface_hub 之前设置，否则不生效。
+# 这里不设置 HF_HOME，沿用默认缓存目录（模型已缓存在 ~/.cache/huggingface）。
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
-
-_CACHE_DIR = Path(__file__).resolve().parents[2] / "hf_cache"
-_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-os.environ.setdefault("HF_HOME", str(_CACHE_DIR))
 
 _reranker = None
 

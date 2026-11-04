@@ -23,7 +23,7 @@ IntraAI 是一个基于 RAG（检索增强生成）的企业知识库系统，�
 | **前端** | Vue 3 + Vite + Ant Design Vue + Pinia + Vue Router |
 | **后端** | FastAPI + SQLAlchemy + Alembic + Pydantic |
 | **数据库** | MySQL 8.0（业务数据）+ ChromaDB（向量存储） |
-| **AI/ML** | OpenAI 兼容 API（小米 MiMo）+ Sentence-Transformers + LangChain |
+| **AI/ML** | OpenAI 兼容 API（阿里云百炼 / DeepSeek）+ Sentence-Transformers + LangChain |
 | **检索** | 向量检索（ChromaDB）+ BM25（rank-bm25 + jieba）+ CrossEncoder 重排序 |
 | **部署** | Docker Compose + Nginx 反向代理 |
 | **CI/CD** | GitHub Actions（Lint → Test → Build） |
@@ -73,7 +73,7 @@ IntraAI/
 - Python 3.11+
 - Node.js 20+
 - MySQL 8.0（或使用 Docker Compose 自动启动）
-- 小米 MiMo API Key（[申请地址](https://token-plan-cn.xiaomimimo.com)）
+- 阿里云百炼 API Key（[控制台](https://platform.qianwenai.com)）
 
 ### 方式一：本地开发
 
@@ -141,10 +141,10 @@ docker compose down
 在项目根目录创建 `.env` 文件：
 
 ```bash
-# MiMo API 配置（必填）
+# 大模型 API 配置（必填，阿里云百炼 / 通义千问 OpenAI 兼容接口）
 OPENAI_API_KEY=sk-your-key-here
-OPENAI_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1
-OPENAI_MODEL=mimo-v2.5-pro
+OPENAI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+OPENAI_MODEL=deepseek-v4.1-flash-1017
 
 # 以下为可选配置（已有默认值）
 # MYSQL_HOST=localhost

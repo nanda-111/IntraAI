@@ -1,15 +1,13 @@
 """文本向量化服务，使用本地 sentence-transformers 模型。"""
 
 import os
-from pathlib import Path
 
-from sentence_transformers import SentenceTransformer
-
+# 必须在导入 sentence_transformers 之前设置：
+# huggingface_hub 在 import 时就会读取 HF_ENDPOINT，之后再设置不会生效，
+# 导致国内直连 huggingface.co 超时（WinError 10060）。默认改走镜像。
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
-_CACHE_DIR = Path(__file__).resolve().parents[2] / "hf_cache"
-_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-os.environ.setdefault("HF_HOME", str(_CACHE_DIR))
+from sentence_transformers import SentenceTransformer  # noqa: E402
 
 MODEL_NAME = "shibing624/text2vec-base-chinese"
 _model = SentenceTransformer(MODEL_NAME)

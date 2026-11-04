@@ -1,11 +1,13 @@
 @echo off
 chcp 65001 >nul
+setlocal
+cd /d "%~dp0"
 echo ========================================
 echo   IntraAI Dev Startup
 echo ========================================
 
 echo [1/2] Starting backend (uvicorn) ...
-start "IntraAI Backend" cmd /k "cd /d %~dp0backend && venv\Scripts\activate && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+start "IntraAI Backend" cmd /k "cd /d %~dp0backend && venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 
 timeout /t 3 /nobreak >nul
 

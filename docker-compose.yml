@@ -73,8 +73,8 @@ services:
       # SECRET_KEY：用于 JWT 等加密场景，生产环境请替换为随机长字符串
       SECRET_KEY: change-this-to-a-random-string
 
-      # ---------- MiMo API 配置 ----------
-      # 从宿主机 .env 文件中读取 MiMo API 配置
+      # ---------- 大模型 API 配置 ----------
+      # 从宿主机 .env 文件中读取（阿里云百炼 OpenAI 兼容接口）
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL}
       OPENAI_MODEL: ${OPENAI_MODEL}

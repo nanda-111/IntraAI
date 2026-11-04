@@ -34,7 +34,9 @@ config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers 必须为 False：默认 True 会禁用 uvicorn 等已经创建的
+    # logger，导致启动日志在迁移之后全部消失，看起来像卡死
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # target_metadata 告诉 autogenerate "期望的表结构"是什么
 # autogenerate 会对比 target_metadata 和数据库实际结构，生成差异迁移脚本
